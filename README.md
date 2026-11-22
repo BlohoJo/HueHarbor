@@ -362,4 +362,10 @@ The modals (Help, Magnify, Preview) keep keyboard focus inside while open and re
 
 ## License
 
-*The author has not yet chosen a license for this repository.* Until a `LICENSE` file is added, the default copyright rules apply: you may read and use the file, but redistribution and derivative works are not yet permitted. If you are the author, see [choosealicense.com](https://choosealicense.com/) for help picking one (MIT and Apache-2.0 are common choices for small apps like this).
+The code, design and documentation are released under the
+[MIT License](LICENSE) — © 2024–2026 Jacob Holmes.
+
+The palette data (the 152 foundation colors, ~3,400 color sets and
+scheme/mood groupings) originates from Palette Picker by Lightdream Design,
+adapted from Rockport Publishers' *Color Harmony* books.  It is included for
+preservation purposes; see [DATA_NOTICE.md](DATA_NOTICE.md) for details.
