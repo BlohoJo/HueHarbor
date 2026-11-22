@@ -1,0 +1,322 @@
+/* =====================================================================
+   Part 3: Preview — a palette applied to sample designs and photos
+   All scenes are original inline SVG drawn here; the photo scene is a canvas.
+   ===================================================================== */
+
+const PV_SCENES=[['web','Website'],['poster','Poster'],['room','Interior'],['outfit','Outfit'],['dash','Dashboard'],['photo','Your photo']];
+const PV_EFFECTS=[['gradient','Gradient map'],['poster','Posterize'],['duo','Duotone']];
+let pv={idx:0,scene:0,shuffle:0,base:null,effect:'gradient',duoA:0,duoB:1,intensity:1,src:null,fullSrc:null,full:null,srcName:'sample',busy:false,raf:0};
+
+/* ---------- colour helpers ---------- */
+function pvShift(hex,dL,cMul){const[l,c,hh]=hexToOklch(hex);return oklchToHex(clamp(l+dL,0,1),c*(cMul===undefined?1:cMul),hh);}
+function pvL(hex){return hexToOklch(hex)[0];}
+/* Assign colour roles. shuffle cycles 2n variants: n "soft" (derived neutral background) + n "bold" (a palette colour as background). */
+function pvRoles(colors,shuffle,base){
+  const n=colors.length,k=((shuffle%(2*n))+2*n)%(2*n),dark=base==='dark';
+  const rot=colors.map((_,i)=>colors[(i+k)%n]);
+  const byL=[...rot].sort((a,b)=>pvL(a)-pvL(b));
+  let bg,surface,bold=k>=n;
+  if(bold){bg=rot[0];const l=pvL(bg);surface=pvShift(bg,l>.5?-.07:.09,.9);}
+  else{
+    const ref=dark?byL[0]:byL[n-1];const[l,c,hh]=hexToOklch(ref);
+    bg=dark?(l<.27?ref:oklchToHex(.19,Math.min(c,.05),hh)):(l>.9?ref:oklchToHex(.962,Math.min(c,.03),hh));
+    surface=dark?oklchToHex(Math.min(pvL(bg)+.07,1),Math.min(c,.06),hh):oklchToHex(.992,Math.min(c,.015),hh);
+  }
+  // text: a palette colour if it reaches 7:1, else a derived near-black / near-white in the background's hue
+  const cands=rot.filter(c=>c!==bg).sort((a,b)=>contrast(b,bg)-contrast(a,bg));
+  let text;if(cands.length&&contrast(cands[0],bg)>=7)text=cands[0];
+  else{const[l,c,hh]=hexToOklch(bg);const opts=[oklchToHex(.2,Math.min(c,.04),hh),oklchToHex(.975,Math.min(c,.02),hh),'#000000','#ffffff'];text=opts.find(o=>contrast(o,bg)>=4.5)||opts.sort((a,b)=>contrast(b,bg)-contrast(a,bg))[0];}
+  let t=.42,muted=mixHex(text,bg,t);while(t>0&&contrast(muted,bg)<4.5){t-=.06;muted=mixHex(text,bg,t);}
+  const chrom=rot.filter(c=>c!==bg&&c!==text);
+  const fix=c=>contrast(c,bg)<1.6?pvShift(c,pvL(bg)>.5?-.3:.3):c;// keep buttons visible on their background
+  let primary=fix(chrom[0]||rot[0]);
+  let accent=chrom[1]?fix(chrom[1]):(()=>{const[l,c,hh]=hexToOklch(primary);return oklchToHex(clamp(l+(l>.5?-.18:.18),0,1),Math.max(c,.08),hh+40);})();
+  const secondary=chrom[2]?fix(chrom[2]):pvShift(accent,pvL(accent)>.5?-.2:.2);
+  const tertiary=chrom[3]?fix(chrom[3]):pvShift(primary,pvL(primary)>.5?-.22:.22,.8);
+  const floor=dark?pvShift(bg,.06,.9):pvShift(bg,-.08,1.4);
+  return{bg,surface,text,muted,primary,accent,secondary,tertiary,floor,onPrimary:textOn(primary),onAccent:textOn(accent),onSecondary:textOn(secondary),accentText:contrast(accent,bg)>=3?accent:text,primaryText:contrast(primary,bg)>=3?primary:text,all:rot,bold,dark};
+}
+
+/* ---------- scenes (original SVG) ---------- */
+const PV_F='font-family="system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"';
+function pvSvg(inner){return`<svg viewBox="0 0 800 500" width="100%" height="100%" ${PV_F} role="img">${inner}</svg>`;}
+const PV_SCENE_FN={
+  web(R){
+    const card=(x,c,t)=>`<rect x="${x}" y="362" width="208" height="112" rx="14" fill="${R.surface}"/><circle cx="${x+30}" cy="392" r="15" fill="${c}"/><text x="${x+56}" y="397" font-size="14" font-weight="700" fill="${R.text}">${t}</text><rect x="${x+20}" y="418" width="150" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/><rect x="${x+20}" y="433" width="120" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/><rect x="${x+20}" y="448" width="135" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/>`;
+    return pvSvg(`<rect width="800" height="500" fill="${R.bg}"/>
+<rect width="800" height="58" fill="${R.surface}"/><circle cx="42" cy="29" r="12" fill="${R.primary}"/><circle cx="48" cy="25" r="5" fill="${R.accent}"/>
+<text x="62" y="35" font-size="17" font-weight="800" fill="${R.text}">Harbor</text>
+<text x="470" y="34" font-size="13" font-weight="600" fill="${R.muted}">Product</text><text x="540" y="34" font-size="13" font-weight="600" fill="${R.muted}">Pricing</text><text x="604" y="34" font-size="13" font-weight="600" fill="${R.muted}">Journal</text>
+<rect x="676" y="16" width="86" height="27" rx="13.5" fill="${R.primary}"/><text x="719" y="34" font-size="12.5" font-weight="700" text-anchor="middle" fill="${R.onPrimary}">Sign up</text>
+<text x="48" y="150" font-size="40" font-weight="800" fill="${R.text}" letter-spacing="-1">Design with</text><text x="48" y="196" font-size="40" font-weight="800" fill="${R.primaryText}" letter-spacing="-1">confident colour.</text>
+<text x="48" y="230" font-size="14.5" fill="${R.muted}">Palettes tuned for interfaces, print and spaces —</text><text x="48" y="252" font-size="14.5" fill="${R.muted}">previewed live, exported in one click.</text>
+<rect x="48" y="282" width="138" height="42" rx="21" fill="${R.primary}"/><text x="117" y="309" font-size="14" font-weight="700" text-anchor="middle" fill="${R.onPrimary}">Get started</text>
+<rect x="198" y="282" width="128" height="42" rx="21" fill="none" stroke="${R.accentText}" stroke-width="2"/><text x="262" y="309" font-size="14" font-weight="700" text-anchor="middle" fill="${R.accentText}">See demo</text>
+<rect x="438" y="88" width="314" height="246" rx="20" fill="${R.surface}"/>
+<circle cx="548" cy="196" r="74" fill="${R.accent}"/><rect x="598" y="126" width="124" height="160" rx="16" fill="${R.primary}" opacity=".95"/>
+<rect x="470" y="272" width="104" height="40" rx="10" fill="${R.secondary}"/><circle cx="700" cy="300" r="14" fill="${R.tertiary}"/><circle cx="662" cy="120" r="9" fill="${R.tertiary}"/>
+<path d="M470 150 q40 -40 80 0 t80 0" fill="none" stroke="${R.tertiary}" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+${card(48,R.primary,'Generate')}${card(296,R.accent,'Preview')}${card(544,R.secondary,'Export')}`);
+  },
+  poster(R){
+    const dots=[];for(let y=0;y<9;y++)for(let x=0;x<5;x++)dots.push(`<circle cx="${52+x*22}" cy="${330+y*17}" r="4" fill="${R.onPrimary}" opacity=".55"/>`);
+    return pvSvg(`<rect width="800" height="500" fill="${R.bg}"/>
+<polygon points="0,0 330,0 250,500 0,500" fill="${R.primary}"/>
+<circle cx="610" cy="120" r="118" fill="${R.accent}"/><circle cx="660" cy="150" r="118" fill="${R.secondary}" opacity=".85"/>
+<rect x="560" y="430" width="200" height="18" fill="${R.tertiary}"/><rect x="620" y="456" width="140" height="18" fill="${R.secondary}"/><rect x="680" y="482" width="80" height="18" fill="${R.accent}"/>
+<text x="56" y="60" font-size="12" font-weight="700" letter-spacing="4" fill="${R.onPrimary}">LIGHTHOUSE HALL</text>
+<text transform="translate(92 290) rotate(-90)" font-size="46" font-weight="900" fill="${R.onPrimary}" letter-spacing="-1" opacity=".92">VOL. 07</text>
+${dots.join('')}
+<text x="330" y="190" font-size="78" font-weight="900" fill="${R.text}" letter-spacing="-3">COLOUR</text>
+<text x="330" y="262" font-size="78" font-weight="900" fill="${R.text}" letter-spacing="-3">HARMONY</text>
+<text x="330" y="334" font-size="78" font-weight="900" fill="${R.primaryText}" letter-spacing="-3">WEEK</text>
+<text x="334" y="380" font-size="17" font-weight="800" letter-spacing="3" fill="${R.text}">12 – 18 MAY</text>
+<text x="334" y="406" font-size="13" fill="${R.muted}">Talks · workshops · open studios</text>
+<text x="334" y="426" font-size="13" fill="${R.muted}">Doors 18:00 · Free entry</text>`);
+  },
+  room(R){
+    const leaf=(x,y,r,c)=>`<ellipse cx="${x}" cy="${y}" rx="14" ry="34" transform="rotate(${r} ${x} ${y})" fill="${c}"/>`;
+    return pvSvg(`<defs><radialGradient id="pvGlow"><stop offset="0" stop-color="${R.accent}" stop-opacity=".55"/><stop offset="1" stop-color="${R.accent}" stop-opacity="0"/></radialGradient></defs>
+<rect width="800" height="500" fill="${R.bg}"/><rect y="338" width="800" height="162" fill="${R.floor}"/><rect y="334" width="800" height="7" fill="${R.surface}" opacity=".7"/>
+<rect x="560" y="58" width="180" height="176" rx="6" fill="${R.surface}" stroke="${R.muted}" stroke-opacity=".35" stroke-width="5"/>
+<rect x="648" y="58" width="4" height="176" fill="${R.muted}" opacity=".35"/><rect x="560" y="144" width="180" height="4" fill="${R.muted}" opacity=".35"/>
+<circle cx="700" cy="110" r="22" fill="${R.tertiary}" opacity=".9"/>
+<rect x="118" y="66" width="214" height="150" rx="3" fill="${R.surface}" stroke="${R.text}" stroke-width="5"/>
+<circle cx="190" cy="140" r="42" fill="${R.primary}"/><rect x="226" y="98" width="70" height="90" rx="8" fill="${R.accent}" opacity=".95"/><polygon points="150,200 215,200 182,160" fill="${R.secondary}"/>
+<circle cx="693" cy="200" r="120" fill="url(#pvGlow)"/>
+<path d="M655 236 L731 236 L716 170 L670 170 Z" fill="${R.surface}" stroke="${R.muted}" stroke-opacity=".25" stroke-width="2"/><rect x="690" y="236" width="6" height="124" fill="${R.text}"/><ellipse cx="693" cy="362" rx="30" ry="7" fill="${R.text}"/>
+<ellipse cx="400" cy="436" rx="310" ry="54" fill="${R.primary}"/><ellipse cx="400" cy="436" rx="258" ry="38" fill="none" stroke="${R.surface}" stroke-width="4" stroke-dasharray="14 10" opacity=".85"/>
+<rect x="206" y="214" width="388" height="78" rx="22" fill="${pvShift(R.accent,-.06)}"/>
+<rect x="188" y="248" width="48" height="116" rx="18" fill="${pvShift(R.accent,-.09)}"/><rect x="564" y="248" width="48" height="116" rx="18" fill="${pvShift(R.accent,-.09)}"/>
+<rect x="226" y="276" width="348" height="84" rx="16" fill="${R.accent}"/>
+<rect x="236" y="286" width="164" height="60" rx="10" fill="${pvShift(R.accent,.05)}"/><rect x="408" y="286" width="156" height="60" rx="10" fill="${pvShift(R.accent,.05)}"/>
+<rect x="250" y="232" width="62" height="62" rx="12" transform="rotate(-7 281 263)" fill="${R.secondary}"/><rect x="490" y="232" width="62" height="62" rx="12" transform="rotate(6 521 263)" fill="${R.tertiary}"/>
+<rect x="220" y="362" width="12" height="14" fill="${R.text}"/><rect x="568" y="362" width="12" height="14" fill="${R.text}"/>
+<rect x="56" y="296" width="60" height="66" rx="7" fill="${R.secondary}"/><rect x="50" y="290" width="72" height="14" rx="4" fill="${pvShift(R.secondary,-.08)}"/>
+${leaf(86,250,0,R.tertiary)}${leaf(60,262,-35,R.primary)}${leaf(112,262,35,R.primary)}${leaf(74,232,-15,pvShift(R.tertiary,-.08))}${leaf(100,230,18,pvShift(R.tertiary,-.08))}
+<text x="400" y="488" font-size="11" text-anchor="middle" fill="${R.muted}" opacity=".8">LIVING ROOM · ${R.all.length} COLOURS</text>`);
+  },
+  outfit(R){
+    const skin=mixHex(R.text,R.bg,.62),coatD=pvShift(R.accent,-.07);
+    const chip=(y,c,t)=>`<rect x="600" y="${y}" width="34" height="34" rx="9" fill="${c}"/><text x="646" y="${y+22}" font-size="13" font-weight="600" fill="${R.text}">${t}</text>`;
+    return pvSvg(`<rect width="800" height="500" fill="${R.bg}"/><circle cx="340" cy="262" r="196" fill="${R.surface}"/>
+<text x="64" y="88" font-size="12" font-weight="800" letter-spacing="3" fill="${R.muted}">LOOK 03</text><text x="64" y="118" font-size="24" font-weight="800" fill="${R.text}">Layered</text><text x="64" y="146" font-size="24" font-weight="800" fill="${R.primaryText}">tones</text>
+<rect x="64" y="166" width="46" height="4" rx="2" fill="${R.accent}"/>
+<ellipse cx="312" cy="470" rx="40" ry="11" fill="${R.text}"/><ellipse cx="372" cy="470" rx="40" ry="11" fill="${R.text}"/>
+<path d="M292 290 L300 462 L336 462 L342 330 L348 462 L384 462 L392 290 Z" fill="${R.secondary}"/>
+<path d="M292 290 L300 462 L336 462 L342 330 Z" fill="${pvShift(R.secondary,-.04)}"/>
+<rect x="286" y="282" width="112" height="12" rx="4" fill="${R.text}"/><rect x="334" y="280" width="16" height="16" rx="3" fill="${R.tertiary}"/>
+<path d="M318 150 L342 164 L366 150 L380 176 L380 290 L304 290 L304 176 Z" fill="${R.primary}"/>
+<path d="M272 160 L318 150 L342 172 L366 150 L412 160 L404 350 L372 350 L376 300 L308 300 L312 350 L280 350 Z" fill="${R.accent}"/>
+<path d="M318 150 L342 196 L330 300 L308 300 L304 176 Z" fill="${coatD}"/><path d="M366 150 L342 196 L354 300 L376 300 L380 176 Z" fill="${coatD}"/>
+<path d="M272 160 L300 158 L292 320 L258 318 Z" fill="${R.accent}"/><path d="M412 160 L384 158 L392 320 L426 318 Z" fill="${R.accent}"/>
+<circle cx="274" cy="326" r="14" fill="${skin}"/><circle cx="410" cy="326" r="14" fill="${skin}"/>
+<path d="M300 142 q42 44 84 0 l10 16 q-52 34 -104 0 z" fill="${R.tertiary}"/>
+<rect x="328" y="112" width="28" height="30" fill="${skin}"/><circle cx="342" cy="92" r="34" fill="${skin}"/>
+<path d="M308 86 q34 -40 68 0 q6 -34 -34 -40 q-40 6 -34 40 z" fill="${R.text}"/>
+<path d="M410 330 q40 20 44 70" fill="none" stroke="${R.text}" stroke-width="3"/><rect x="430" y="396" width="66" height="50" rx="10" fill="${R.tertiary}"/><rect x="430" y="408" width="66" height="5" fill="${R.text}" opacity=".35"/><circle cx="463" cy="428" r="4" fill="${R.text}"/>
+${chip(176,R.tertiary,'Scarf & bag')}${chip(222,R.accent,'Coat')}${chip(268,R.primary,'Top')}${chip(314,R.secondary,'Trousers')}${chip(360,R.text,'Shoes & belt')}`);
+  },
+  dash(R){
+    const pal=[R.primary,R.accent,R.secondary,R.tertiary,R.text];
+    const vals=[46,72,58,90,64,80,52,96,70,84];
+    const bars=vals.map((v,i)=>`<rect x="${226+i*33}" y="${300-v*1.0}" width="20" height="${v}" rx="5" fill="${pal[i%4]}"/>`).join('');
+    const seg=[34,26,20,12,8];let acc=0;const C=2*Math.PI*44;
+    const donut=seg.map((s,i)=>{const d=`<circle cx="665" cy="246" r="44" fill="none" stroke="${pal[i%pal.length]}" stroke-width="18" stroke-dasharray="${C*s/100-3} ${C-C*s/100+3}" stroke-dashoffset="${-C*acc/100}" transform="rotate(-90 665 246)"/>`;acc+=s;return d;}).join('');
+    const pts=[0,.18,.12,.35,.3,.55,.48,.7,.62,.86,.78,1].map((t,i)=>[228+i*47,452-t*88]);
+    const line=pts.map(p=>p.join(',')).join(' ');
+    const pts2=[.1,.2,.28,.26,.4,.42,.5,.58,.56,.7,.72,.8].map((t,i)=>[228+i*47,452-t*88]).map(p=>p.join(',')).join(' ');
+    const nav=['Overview','Audience','Revenue','Reports','Settings'].map((t,i)=>`<rect x="14" y="${88+i*40}" width="142" height="30" rx="8" fill="${i===0?R.primary:'none'}" opacity="${i===0?.18:1}"/><text x="30" y="${108+i*40}" font-size="13" font-weight="${i===0?700:600}" fill="${i===0?R.primaryText:R.muted}">${t}</text>`).join('');
+    const kpi=(x,l,v,d,c)=>`<rect x="${x}" y="74" width="172" height="80" rx="12" fill="${R.surface}"/><text x="${x+16}" y="98" font-size="11.5" font-weight="600" fill="${R.muted}">${l}</text><text x="${x+16}" y="130" font-size="26" font-weight="800" fill="${R.text}">${v}</text><rect x="${x+118}" y="112" width="40" height="20" rx="10" fill="${c}"/><text x="${x+138}" y="126" font-size="11" font-weight="700" text-anchor="middle" fill="${textOn(c)}">${d}</text>`;
+    return pvSvg(`<rect width="800" height="500" fill="${R.bg}"/><rect width="170" height="500" fill="${R.surface}"/>
+<circle cx="34" cy="38" r="13" fill="${R.primary}"/><text x="54" y="43" font-size="16" font-weight="800" fill="${R.text}">Harbor</text>${nav}
+<text x="200" y="50" font-size="22" font-weight="800" fill="${R.text}">Overview</text><text x="752" y="48" font-size="12.5" text-anchor="end" fill="${R.muted}">Last 30 days ▾</text>
+${kpi(200,'VISITORS','48.2k','+12%',R.accent)}${kpi(390,'REVENUE','$96.4k','+8%',R.secondary)}${kpi(580,'RETENTION','72%','+3%',R.tertiary)}
+<rect x="200" y="170" width="364" height="152" rx="12" fill="${R.surface}"/><text x="216" y="194" font-size="13" font-weight="700" fill="${R.text}">Sessions by week</text>
+<line x1="216" y1="300" x2="548" y2="300" stroke="${R.muted}" stroke-opacity=".3"/><line x1="216" y1="255" x2="548" y2="255" stroke="${R.muted}" stroke-opacity=".18"/><line x1="216" y1="210" x2="548" y2="210" stroke="${R.muted}" stroke-opacity=".18"/>${bars}
+<rect x="580" y="170" width="172" height="152" rx="12" fill="${R.surface}"/><text x="596" y="194" font-size="13" font-weight="700" fill="${R.text}">Channels</text>${donut}<text x="665" y="252" font-size="18" font-weight="800" text-anchor="middle" fill="${R.text}">68%</text>
+<rect x="200" y="338" width="552" height="138" rx="12" fill="${R.surface}"/><text x="216" y="362" font-size="13" font-weight="700" fill="${R.text}">Growth</text>
+<circle cx="616" cy="358" r="5" fill="${R.primary}"/><text x="626" y="362" font-size="11" fill="${R.muted}">This year</text><circle cx="694" cy="358" r="5" fill="${R.accent}"/><text x="704" y="362" font-size="11" fill="${R.muted}">Last year</text>
+<polygon points="228,452 ${line} 745,452" fill="${R.primary}" opacity=".16"/><polyline points="${line}" fill="none" stroke="${R.primary}" stroke-width="3" stroke-linejoin="round"/><polyline points="${pts2}" fill="none" stroke="${R.accent}" stroke-width="2.5" stroke-dasharray="6 5"/>
+${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${R.surface}" stroke="${R.primary}" stroke-width="2.5"/>`).join('')}`);
+  }
+};
+
+/* ---------- photo scene ---------- */
+const PV_W=800,PV_H=500,PV_MAX=4096; /* preview box; export longest side cap */
+/* Procedural "photo": a lakeside at dusk, drawn with gradients and seeded noise (no embedded image) */
+function pvSamplePhoto(){
+  const c=document.createElement('canvas');c.width=PV_W;c.height=PV_H;const g=c.getContext('2d',{willReadFrequently:true});const r=rng(20260521);
+  let sky=g.createLinearGradient(0,0,0,300);sky.addColorStop(0,'#1a2a55');sky.addColorStop(.45,'#5a5f9e');sky.addColorStop(.8,'#e9956a');sky.addColorStop(1,'#ffd9a0');g.fillStyle=sky;g.fillRect(0,0,PV_W,300);
+  const sun=g.createRadialGradient(560,250,10,560,250,170);sun.addColorStop(0,'rgba(255,240,200,.95)');sun.addColorStop(.18,'rgba(255,210,140,.7)');sun.addColorStop(1,'rgba(255,180,120,0)');g.fillStyle=sun;g.fillRect(0,0,PV_W,300);
+  g.fillStyle='#ffe9b8';g.beginPath();g.arc(560,250,38,0,Math.PI*2);g.fill();
+  for(let i=0;i<9;i++){const x=r()*PV_W,y=40+r()*140,w=80+r()*140;const cl=g.createRadialGradient(x,y,2,x,y,w);cl.addColorStop(0,'rgba(255,230,220,.55)');cl.addColorStop(1,'rgba(255,230,220,0)');g.fillStyle=cl;g.beginPath();g.ellipse(x,y,w,w*.28,0,0,Math.PI*2);g.fill();}
+  const ridge=(base,amp,col,step)=>{g.fillStyle=col;g.beginPath();g.moveTo(0,PV_H);let y=base;for(let x=0;x<=PV_W;x+=step){y+=(r()-.5)*amp;y=clamp(y,base-amp*3,base+amp*3);g.lineTo(x,y);}g.lineTo(PV_W,PV_H);g.closePath();g.fill();};
+  ridge(190,18,'#6d6f9c',24);ridge(230,14,'#4a4b78',18);ridge(265,10,'#2d2e52',14);
+  const lake=g.createLinearGradient(0,300,0,PV_H);lake.addColorStop(0,'#f0b57e');lake.addColorStop(.3,'#8b7aa0');lake.addColorStop(1,'#1c2446');g.fillStyle=lake;g.fillRect(0,300,PV_W,200);
+  for(let i=0;i<140;i++){const y=302+r()*190,x=r()*PV_W,w=20+r()*120;g.fillStyle=`rgba(255,235,200,${.05+r()*.18*(1-(y-300)/220)})`;g.fillRect(x,y,w,1.5);}
+  const refl=g.createLinearGradient(0,300,0,420);refl.addColorStop(0,'rgba(255,220,160,.55)');refl.addColorStop(1,'rgba(255,220,160,0)');g.fillStyle=refl;g.fillRect(520,300,80,120);
+  g.fillStyle='#141a33';g.beginPath();g.moveTo(0,PV_H);g.lineTo(0,400);for(let x=0;x<=260;x+=6)g.lineTo(x,405+Math.sin(x/9)*6+r()*6);g.lineTo(260,PV_H);g.fill();
+  const tree=(x,y,hh,w)=>{g.fillStyle='#0f1430';for(let k=0;k<4;k++){const ty=y-hh*k/4;g.beginPath();g.moveTo(x,ty-hh/3);g.lineTo(x-w*(1-k*.18),ty);g.lineTo(x+w*(1-k*.18),ty);g.closePath();g.fill();}g.fillRect(x-3,y-4,6,22);};
+  tree(60,420,120,34);tree(130,440,150,42);tree(200,428,110,30);tree(740,430,140,40);tree(690,445,100,28);
+  g.fillStyle='#0f1430';g.beginPath();g.moveTo(640,440);g.lineTo(800,440);g.lineTo(800,PV_H);g.lineTo(640,PV_H);g.fill();
+  g.fillStyle='#2a2f4a';g.beginPath();g.ellipse(430,415,46,8,0,0,Math.PI*2);g.fill();g.fillStyle='#1b1f3a';g.beginPath();g.moveTo(392,414);g.lineTo(468,414);g.lineTo(458,402);g.lineTo(402,402);g.closePath();g.fill();g.fillRect(428,380,3,24);g.fillStyle='#f6c28b';g.beginPath();g.moveTo(431,380);g.lineTo(431,402);g.lineTo(416,400);g.closePath();g.fill();
+  const vig=g.createRadialGradient(400,250,220,400,250,520);vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(10,8,30,.55)');g.fillStyle=vig;g.fillRect(0,0,PV_W,PV_H);
+  return g.getImageData(0,0,PV_W,PV_H);
+}
+/* Loading: decode off the main thread when possible (createImageBitmap), fall back to an <img> from an object URL.
+   The preview works on a copy fitted into PV_W×PV_H; the full-resolution pixels are only read for Download PNG. */
+function pvLoadImage(file){
+  if(file.type&&!file.type.startsWith('image/'))return toast('Please choose an image file');
+  const name=slugify(file.name.replace(/\.[^.]+$/,''))||'photo';
+  const done=im=>{
+    const iw=im.width||im.naturalWidth,ih=im.height||im.naturalHeight;if(!iw||!ih)return toast('Could not read that image');
+    const s=Math.min(PV_W/iw,PV_H/ih),w=Math.max(1,Math.round(iw*s)),hh=Math.max(1,Math.round(ih*s));
+    const c=document.createElement('canvas');c.width=w;c.height=hh;const g=c.getContext('2d',{willReadFrequently:true});g.imageSmoothingQuality='high';g.drawImage(im,0,0,w,hh);
+    pvDropPhoto();pv.src=g.getImageData(0,0,w,hh);pv.fullSrc={img:im,w:iw,h:ih};pv.srcName=name;pv.intensity=1;
+    toast('Photo loaded (stays in your browser)');renderPreview();
+  };
+  const viaUrl=()=>{const url=URL.createObjectURL(file);const im=new Image();im.onload=()=>{URL.revokeObjectURL(url);done(im);};im.onerror=()=>{URL.revokeObjectURL(url);toast('Could not read that image');};im.src=url;};
+  if(typeof createImageBitmap==='function')createImageBitmap(file).then(done,viaUrl);else viaUrl();
+}
+/* Forget the loaded photo and free its decoded bitmap */
+function pvDropPhoto(){if(pv.fullSrc&&pv.fullSrc.img&&typeof pv.fullSrc.img.close==='function')pv.fullSrc.img.close();pv.src=null;pv.fullSrc=null;pv.full=null;}
+/* Full-resolution pixels of the loaded photo (longest side capped at PV_MAX), read lazily and cached */
+function pvFullData(){
+  if(pv.full)return pv.full;if(!pv.fullSrc)return pvSource();
+  const {img,w,h:hh}=pv.fullSrc,s=Math.min(1,PV_MAX/Math.max(w,hh)),fw=Math.max(1,Math.round(w*s)),fh=Math.max(1,Math.round(hh*s));
+  const c=document.createElement('canvas');c.width=fw;c.height=fh;const g=c.getContext('2d',{willReadFrequently:true});g.imageSmoothingQuality='high';g.drawImage(img,0,0,fw,fh);
+  return pv.full=g.getImageData(0,0,fw,fh);
+}
+function pvSource(){if(!pv.src)pv.src=pvSamplePhoto();return pv.src;}
+/* Packed RGBA pixel in this platform's byte order, so Uint32Array stores write r,g,b,255 */
+const PV_LE=new Uint8Array(new Uint32Array([1]).buffer)[0]===1;
+function pvPack(r,g,b){return PV_LE?(255<<24|b<<16|g<<8|r)>>>0:(r<<24|g<<16|b<<8|255)>>>0;}
+/* 256-entry packed-pixel ramp that interpolates through `stops` (hex) in OKLab; cached per stop list */
+const pvRampCache=new Map();
+function pvRamp(stops){
+  const key=stops.join();if(pvRampCache.has(key))return pvRampCache.get(key);
+  const labs=stops.map(hx=>rgbToOklab(...hexToRgb(hx)));const lut=new Uint32Array(256);
+  for(let i=0;i<256;i++){const t=i/255*(labs.length-1),k=Math.min(Math.floor(t),labs.length-2),f=t-k;const a=labs[k],b=labs[k+1];const rgb=oklabToRgbRaw(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f).map(unlin);lut[i]=pvPack(rgb[0],rgb[1],rgb[2]);}
+  if(pvRampCache.size>64)pvRampCache.clear();pvRampCache.set(key,lut);return lut;
+}
+/* OKLab of every 5-bit-per-channel RGB cell (bucket centres): 32768×3 floats, built once */
+let pvGridLab=null;
+function pvGrid(){
+  if(pvGridLab)return pvGridLab;const g=new Float32Array(32768*3);
+  for(let r=0;r<32;r++)for(let gg=0;gg<32;gg++)for(let b=0;b<32;b++){const lab=rgbToOklab(r*8+4,gg*8+4,b*8+4),i=(r<<10|gg<<5|b)*3;g[i]=lab[0];g[i+1]=lab[1];g[i+2]=lab[2];}
+  return pvGridLab=g;
+}
+/* Posterize table for a palette: nearest palette colour (OKLab) for each of the 32768 RGB cells; cached per palette */
+const pvLutCache=new Map();
+function pvPosterLut(colors){
+  const key=colors.join();if(pvLutCache.has(key))return pvLutCache.get(key);
+  const grid=pvGrid(),n=colors.length,L=new Float32Array(n),A=new Float32Array(n),B=new Float32Array(n),pal32=new Uint32Array(n);
+  colors.forEach((hx,i)=>{const rgb=hexToRgb(hx),lab=rgbToOklab(...rgb);L[i]=lab[0];A[i]=lab[1];B[i]=lab[2];pal32[i]=pvPack(...rgb);});
+  const lut=new Uint8Array(32768);
+  for(let c=0,j=0;c<32768;c++,j+=3){const l=grid[j],a=grid[j+1],b=grid[j+2];let best=0,bd=Infinity;for(let q=0;q<n;q++){const dl=l-L[q],da=a-A[q],db=b-B[q],d=dl*dl+da*da+db*db;if(d<bd){bd=d;best=q;}}lut[c]=best;}
+  const res={lut,pal32};if(pvLutCache.size>64)pvLutCache.clear();pvLutCache.set(key,res);return res;
+}
+/* Pure pixel kernel — no outside references, because its source is also serialised into the export Worker.
+   src: RGBA bytes; opt: {mode:'poster'|'ramp', lut, pal32, ramp32, light (optional cache), k: 0..256 intensity}
+   Returns {out, light}. */
+function pvKernel(src,opt){
+  const n=src.length>>2,out=new Uint8ClampedArray(src.length),LE=new Uint8Array(new Uint32Array([1]).buffer)[0]===1;
+  const s32=new Uint32Array(src.buffer,src.byteOffset,n),o32=new Uint32Array(out.buffer);let light=opt.light||null;
+  if(opt.mode==='poster'){
+    const lut=opt.lut,pal=opt.pal32;
+    if(LE)for(let p=0;p<n;p++){const v=s32[p];o32[p]=pal[lut[(v&0xF8)<<7|(v>>6)&0x3E0|(v>>19)&31]];}
+    else for(let p=0;p<n;p++){const v=s32[p];o32[p]=pal[lut[(v>>>27)<<10|(v>>19&31)<<5|(v>>11&31)]];}
+  }else{
+    if(!light){ // OKLab lightness per pixel, 0..255 (cached by the caller per source image)
+      light=new Uint8ClampedArray(n);const LIN=new Float32Array(256);for(let i=0;i<256;i++){const c=i/255;LIN[i]=c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4);}
+      for(let p=0,i=0;p<n;p++,i+=4){const R=LIN[src[i]],G=LIN[src[i+1]],B=LIN[src[i+2]];const l=Math.cbrt(.4122214708*R+.5363325363*G+.0514459929*B),m=Math.cbrt(.2119034982*R+.6806995451*G+.1073969566*B),s=Math.cbrt(.0883024619*R+.2817188376*G+.6299787005*B);light[p]=(.2104542553*l+.793617785*m-.0040720468*s)*255;}
+    }
+    const ramp=opt.ramp32;for(let p=0;p<n;p++)o32[p]=ramp[light[p]];
+  }
+  const k=opt.k;
+  if(k<256)for(let i=0;i<src.length;i+=4){const r=src[i],g=src[i+1],b=src[i+2];out[i]=r+((out[i]-r)*k>>8);out[i+1]=g+((out[i+1]-g)*k>>8);out[i+2]=b+((out[i+2]-b)*k>>8);}
+  return {out,light};
+}
+/* Kernel options for the current effect; `key` identifies the effect result for caching */
+function pvOpts(colors){
+  if(pv.effect==='poster'){const t=pvPosterLut(colors);return{mode:'poster',lut:t.lut,pal32:t.pal32,key:'p|'+colors.join()};}
+  const stops=pv.effect==='gradient'?[...colors].sort((a,b)=>pvL(a)-pvL(b)):[colors[pv.duoA%colors.length],colors[pv.duoB%colors.length]];
+  return{mode:'ramp',ramp32:pvRamp(stops),key:'r|'+stops.join()};
+}
+/* Preview render: the full-strength effect is cached per source+effect+palette, so intensity changes are only a blend */
+function pvRenderPhoto(canvas,colors){
+  const src=pvSource(),opt=pvOpts(colors);
+  if(!src._fx||src._fx.key!==opt.key){opt.light=src._light||null;opt.k=256;const r=pvKernel(src.data,opt);src._light=r.light;src._fx={key:opt.key,out:r.out};}
+  const eff=src._fx.out,k=Math.round(pv.intensity*256),img=src._img||(src._img=new ImageData(src.width,src.height)),o=img.data,s=src.data;
+  if(k>=256)o.set(eff);else for(let i=0;i<o.length;i+=4){const r=s[i],g=s[i+1],b=s[i+2];o[i]=r+((eff[i]-r)*k>>8);o[i+1]=g+((eff[i+1]-g)*k>>8);o[i+2]=b+((eff[i+2]-b)*k>>8);o[i+3]=255;}
+  canvas.getContext('2d').putImageData(img,0,0);
+}
+/* Coalesce slider input into one render per animation frame */
+function pvQueueRender(colors){if(pv.raf)return;pv.raf=requestAnimationFrame(()=>{pv.raf=0;const cv=$('.pv-stage canvas');if(cv)pvRenderPhoto(cv,colors);});}
+/* Full-resolution export: pixels processed (and, where OffscreenCanvas exists, PNG-encoded) in an inline Worker; main-thread fallback */
+let pvWorkerUrl=null;
+function pvWorkerSrc(){return pvKernel.toString()+`
+self.onmessage=e=>{const d=e.data;try{const r=pvKernel(d.src,d);
+  const raw=()=>postMessage({out:r.out},[r.out.buffer]);
+  if(typeof OffscreenCanvas==='function'){const oc=new OffscreenCanvas(d.w,d.h);oc.getContext('2d').putImageData(new ImageData(r.out,d.w,d.h),0,0);oc.convertToBlob({type:'image/png'}).then(b=>postMessage({blob:b}),raw);}
+  else raw();}catch(err){postMessage({error:String(err)});}};`;}
+function pvDownload(){
+  if(pv.busy)return;const p=collection().items[pv.idx];if(!p)return;const name=`${pv.srcName}-${pv.effect}-${slugify(p.name)}.png`;
+  const full=pvFullData(),w=full.width,hh=full.height,opt=pvOpts(p.colors);opt.k=Math.round(pv.intensity*256);opt.w=w;opt.h=hh;delete opt.key;
+  pv.busy=true;const btn=$('#pvDownload');if(btn){btn.disabled=true;btn.textContent='Preparing…';}
+  const finish=blob=>{pv.busy=false;const b2=$('#pvDownload');if(b2){b2.disabled=false;b2.textContent='Download PNG';}if(blob){downloadBlob(blob,name);toast(`Downloaded ${name} (${w}×${hh})`);}else toast('Could not create the PNG');};
+  const encode=out=>{const c=document.createElement('canvas');c.width=w;c.height=hh;c.getContext('2d').putImageData(new ImageData(out,w,hh),0,0);c.toBlob(finish,'image/png');};
+  const onMain=()=>{pv.exportVia='main';try{encode(pvKernel(full.data,opt).out);}catch(e){finish(null);}};
+  let wk=null;try{if(typeof Worker==='function'){if(!pvWorkerUrl)pvWorkerUrl=URL.createObjectURL(new Blob([pvWorkerSrc()],{type:'text/javascript'}));wk=new Worker(pvWorkerUrl);}}catch(e){wk=null;}
+  if(!wk)return onMain();
+  let settled=false;const fail=()=>{if(settled)return;settled=true;clearTimeout(guard);wk.terminate();onMain();};
+  const guard=setTimeout(fail,60000);wk.onerror=fail;
+  wk.onmessage=e=>{if(settled)return;settled=true;clearTimeout(guard);wk.terminate();const d=e.data;pv.exportVia=d.blob?'worker+offscreen':'worker';if(d.blob)finish(d.blob);else if(d.out)encode(new Uint8ClampedArray(d.out.buffer||d.out));else fail();};
+  const src=full.data.slice();wk.postMessage({mode:opt.mode,lut:opt.lut,pal32:opt.pal32,ramp32:opt.ramp32,k:opt.k,w,h:hh,src},[src.buffer]);
+}
+
+/* ---------- modal ---------- */
+function openPreview(idx,scene){pv.idx=idx;pv.shuffle=0;pv.base=S.theme;if(scene!==undefined)pv.scene=scene;renderPreview();}
+function pvStep(d){const n=collection().items.length;pv.idx=clamp(pv.idx+d,0,n-1);renderPreview();}
+function renderPreview(){
+  const items=collection().items;if(!items.length)return;pv.idx=clamp(pv.idx,0,items.length-1);const p=items[pv.idx];
+  const R=pvRoles(p.colors,pv.shuffle,pv.base||S.theme);const[sid,slabel]=PV_SCENES[pv.scene];
+  const prevBox=$('.pv-box');const keepScroll=prevBox?prevBox.scrollTop:0;
+  const stage=h('div',{class:'pv-stage','data-scene':sid});
+  if(sid==='photo'){const ps=pvSource();const cv=h('canvas',{width:ps.width,height:ps.height,'aria-label':'Photo with palette effect'});cv.getContext('2d',{willReadFrequently:true});stage.append(cv);pvRenderPhoto(cv,p.colors);}
+  else stage.innerHTML=PV_SCENE_FN[sid](R);
+  const tabs=h('div',{class:'pv-tabs',role:'tablist'},...PV_SCENES.map(([id,label],i)=>h('button',{type:'button',role:'tab','data-scene':id,'aria-selected':String(i===pv.scene),onclick:()=>{pv.scene=i;renderPreview();}},label)));
+  const roleChip=(name,c)=>h('span',{class:'pv-role',title:`${name}: ${c.toUpperCase()}`},h('i',{style:'background:'+c}),name);
+  let tools;
+  if(sid==='photo'){
+    const sw=(which)=>h('span',{class:'pv-duo'},...p.colors.map((c,i)=>h('button',{type:'button',class:'pv-dot','aria-pressed':String((which==='A'?pv.duoA:pv.duoB)%p.colors.length===i),style:'background:'+c,title:(which==='A'?'Shadows: ':'Highlights: ')+c.toUpperCase(),onclick:()=>{if(which==='A')pv.duoA=i;else pv.duoB=i;renderPreview();}})));
+    const file=h('input',{type:'file',accept:'image/*',class:'hidden',id:'pvFile',onchange:e=>{const f=e.target.files[0];e.target.value='';if(f)pvLoadImage(f);}});
+    tools=h('div',{class:'pv-tools'},
+      h('div',{class:'seg',role:'group','aria-label':'Effect'},...PV_EFFECTS.map(([id,l])=>h('button',{type:'button','data-effect':id,'aria-pressed':String(pv.effect===id),onclick:()=>{pv.effect=id;renderPreview();}},l))),
+      pv.effect==='duo'?h('span',{class:'pv-duowrap'},h('small',null,'Shadows'),sw('A'),h('small',null,'Highlights'),sw('B')):null,
+      h('label',{class:'pv-range'},'Intensity ',h('input',{type:'range',min:0,max:100,value:Math.round(pv.intensity*100),'aria-label':'Effect intensity',oninput:e=>{pv.intensity=+e.target.value/100;const pc=$('.pv-pct');if(pc)pc.textContent=e.target.value+'%';pvQueueRender(p.colors);}}),h('span',{class:'pv-pct'},Math.round(pv.intensity*100)+'%')),
+      h('span',{style:'flex:1'}),
+      file,h('button',{type:'button',class:'btn small',id:'pvLoad',onclick:()=>file.click()},'Load photo…'),
+      pv.srcName!=='sample'?h('button',{type:'button',class:'btn small',onclick:()=>{pvDropPhoto();pv.srcName='sample';renderPreview();}},'Use sample'):null,
+      h('button',{type:'button',class:'btn small primary',id:'pvDownload',disabled:pv.busy?'':null,onclick:pvDownload},pv.busy?'Preparing…':'Download PNG'));
+  }else{
+    tools=h('div',{class:'pv-tools'},
+      h('div',{class:'pv-roles'},roleChip('Background',R.bg),roleChip('Surface',R.surface),roleChip('Primary',R.primary),roleChip('Accent',R.accent),roleChip('Text',R.text)),
+      h('span',{style:'flex:1'}),
+      h('button',{type:'button',class:'btn small',id:'pvShuffle',title:'Cycle through role assignments',onclick:()=>{pv.shuffle++;renderPreview();}},'⇄ Shuffle roles'),
+      h('div',{class:'seg',role:'group','aria-label':'Base'},h('button',{type:'button','data-base':'light','aria-pressed':String(R.dark===false),onclick:()=>{pv.base='light';renderPreview();}},'Light'),h('button',{type:'button','data-base':'dark','aria-pressed':String(R.dark===true),onclick:()=>{pv.base='dark';renderPreview();}},'Dark')));
+  }
+  const box=h('div',{class:'box pv-box'},
+    h('div',{class:'pv-head'},
+      h('div',null,h('h2',null,'Preview'),h('div',{class:'pv-sub'},p.name,p.note?' · '+p.note:'',' · ',h('span',{style:'font-family:var(--mono)'},p.colors.map(c=>c.toUpperCase()).join(' ')))),
+      h('span',{style:'flex:1'}),
+      h('button',{type:'button',class:'btn small',id:'pvPrev',onclick:()=>pvStep(-1),disabled:pv.idx===0?'':null},'‹ Prev'),
+      h('span',{class:'counter'},`${pv.idx+1} of ${items.length}`),
+      h('button',{type:'button',class:'btn small',id:'pvNext',onclick:()=>pvStep(1),disabled:pv.idx>=items.length-1?'':null},'Next ›'),
+      h('button',{type:'button',class:'btn small',onclick:()=>{toggleInList(p);renderPreview();}},inCurList(p)?'★ Saved':'☆ Save'),
+      h('button',{type:'button',class:'btn small close',onclick:closeModal,'aria-label':'Close preview'},'Close ✕')),
+    tabs,stage,tools,
+    h('p',{class:'contrast-note',style:'margin:8px 0 0'},sid==='photo'?'Effects run locally on a copy of the image; nothing is uploaded. Gradient map orders the palette by lightness; Posterize snaps each pixel to the nearest palette colour in OKLab; Duotone maps shadows → highlights between two colours. Download PNG renders your photo at full resolution (longest side up to 4096 px).':'Roles are assigned automatically: text is chosen for WCAG contrast against its background, and missing roles are derived as OKLCH tints or shades. ← → step through palettes, Esc closes.'));
+  openModal(box);const nb=$('.pv-box');if(nb)nb.scrollTop=keepScroll;
+}

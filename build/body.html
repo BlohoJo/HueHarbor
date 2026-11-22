@@ -1,0 +1,117 @@
+<header>
+  <div class="brand"><span class="logo" aria-hidden="true"></span>Hue Harbor</div>
+  <nav class="modes" aria-label="Mode">
+    <button type="button" data-mode="generate" aria-pressed="true">Generate</button>
+    <button type="button" data-mode="library" aria-pressed="false">Classic library</button>
+    <button type="button" data-mode="lists" aria-pressed="false">My lists</button>
+  </nav>
+  <div class="spacer"></div>
+  <button type="button" class="bgbtn" id="bgBtn" aria-label="Page background colour" title="Page background colour" aria-haspopup="dialog"><span class="bgsw" id="bgSwatch"></span><span class="bglbl">Background</span></button>
+  <button type="button" class="btn small" id="helpBtn">Help &amp; About</button>
+  <button type="button" class="iconbtn" id="themeBtn" aria-label="Toggle light / dark theme" title="Toggle theme">◐</button>
+</header>
+
+<main>
+  <aside class="side">
+    <!-- ===== picker ===== -->
+    <section class="card" id="pickerCard">
+      <h2>Your color</h2>
+      <div class="picker-sv" id="svBox" role="application" aria-label="Saturation and value picker. Use arrow keys to adjust." tabindex="0">
+        <canvas id="svCanvas" width="300" height="207"></canvas>
+        <div class="picker-thumb" id="svThumb"></div>
+      </div>
+      <label class="sr-only" for="hueSlider">Hue</label>
+      <input type="range" min="0" max="360" step="1" value="210" class="hue-slider" id="hueSlider">
+      <div class="picker-preview">
+        <div class="big" id="prevSwatch"></div>
+        <div class="spacer"></div>
+        <button type="button" class="btn small" id="eyeBtn" title="Pick a color from the screen">Eyedropper</button>
+        <input type="color" class="native-color" id="nativeColor" title="System color dialog" aria-label="System color dialog">
+      </div>
+      <div class="meta contrast-note" id="prevMeta" style="margin:-2px 0 8px"></div>
+      <div class="fields">
+        <div class="full"><label class="lbl" for="hexIn">HEX</label><input type="text" id="hexIn" class="mono" spellcheck="false" autocomplete="off"></div>
+        <div><label class="lbl" for="rgbIn">RGB</label><input type="text" id="rgbIn" class="mono" spellcheck="false" autocomplete="off"></div>
+        <div><label class="lbl" for="hslIn">HSL</label><input type="text" id="hslIn" class="mono" spellcheck="false" autocomplete="off"></div>
+      </div>
+      <div style="margin-top:10px">
+        <label class="lbl">Quick picks</label>
+        <div class="chips" id="quickChips"></div>
+      </div>
+    </section>
+
+    <!-- ===== palette type ===== -->
+    <section class="card" id="typeCard">
+      <h2>Palette type</h2>
+      <div class="typegroups" id="typeGroups"></div>
+    </section>
+
+    <!-- ===== library filters ===== -->
+    <section class="card hidden" id="libCard">
+      <h2>Filter the 3,400 classic sets</h2>
+      <div class="seg" role="group" aria-label="Filter kind" id="libKind">
+        <button type="button" data-kind="mood" aria-pressed="true">Mood</button>
+        <button type="button" data-kind="sci" aria-pressed="false">Theory</button>
+        <button type="button" data-kind="color" aria-pressed="false">Base color</button>
+      </div>
+      <div id="libMoodWrap" style="margin-top:10px"><label class="lbl" for="libMood">Mood</label><select id="libMood"></select></div>
+      <div id="libSciWrap" class="hidden" style="margin-top:10px"><label class="lbl" for="libSci">Theory scheme</label><select id="libSci"></select></div>
+      <div id="libColorWrap" class="hidden" style="margin-top:10px">
+        <label class="lbl">One of the 152 base colors (columns = hue, rows = dark → light)</label>
+        <div class="basegrid" id="baseGrid"></div>
+        <div class="contrast-note" id="baseGridName" style="margin-top:6px"></div>
+        <button type="button" class="btn small" id="nearestBaseBtn" style="margin-top:6px">Use nearest to my color</button>
+      </div>
+    </section>
+
+    <!-- ===== lists card ===== -->
+    <section class="card hidden" id="listCard">
+      <h2>Custom lists</h2>
+      <label class="lbl" for="listSelect">Current list</label>
+      <select id="listSelect"></select>
+      <div class="row" style="margin-top:8px">
+        <button type="button" class="btn small" id="listNew">New</button>
+        <button type="button" class="btn small" id="listRename">Rename</button>
+        <button type="button" class="btn small danger" id="listDelete">Delete</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button type="button" class="btn small" id="listExport">Export JSON</button>
+        <button type="button" class="btn small" id="listImport">Import JSON</button>
+        <input type="file" id="listImportFile" accept="application/json,.json" class="hidden">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button type="button" class="btn small" id="listExportAse" title="All palettes of this list as one Adobe Swatch Exchange file (one group per palette)">Export .ase</button>
+        <button type="button" class="btn small" id="listExportGpl" title="All palettes of this list as one GIMP palette file">Export .gpl</button>
+      </div>
+      <p class="contrast-note" style="margin:8px 0 0">Up to 30 lists, saved in this browser. Palettes added from any view land in the current list.</p>
+    </section>
+  </aside>
+
+  <section class="content">
+    <div class="toolbar">
+      <h1 id="title">Palettes <button type="button" class="ibtn" id="infoBtn" aria-label="About this scheme">i</button></h1>
+      <span class="sub" id="subtitle"></span>
+      <div class="spacer"></div>
+      <div class="seg" id="viewSeg" role="group" aria-label="View">
+        <button type="button" data-view="single" aria-pressed="true">Single</button>
+        <button type="button" data-view="multi" aria-pressed="false">All</button>
+      </div>
+      <div class="seg hidden" id="layoutSeg" role="group" aria-label="Layout">
+        <button type="button" data-layout="grid" aria-pressed="true">Grid</button>
+        <button type="button" data-layout="rows" aria-pressed="false">Rows</button>
+      </div>
+      <div class="seg" id="exportSeg" role="group" aria-label="Export all shown palettes">
+        <button type="button" id="exportAllAse" title="Download every palette shown here as one .ase file (one group per palette)">All → .ase</button>
+        <button type="button" id="exportAllGpl" title="Download every palette shown here as one .gpl file">All → .gpl</button>
+      </div>
+    </div>
+    <div id="stage"></div>
+    <div class="nav-single" id="pager"></div>
+  </section>
+</main>
+
+<footer>Hue Harbor is an independent clean-room tribute to a 1990s color-harmony reference tool. No original code, artwork or text was reused — only the recovered numeric color data. Works fully offline.</footer>
+
+<div id="popLayer"></div>
+<div id="modalLayer"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
