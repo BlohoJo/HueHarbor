@@ -1,0 +1,67 @@
+# Publish the single-file app to GitHub Pages.
+#
+# One-time setup in the repository: Settings → Pages → "Build and deployment" → Source: "GitHub Actions".
+# After that, every push to `main` (or a manual run from the Actions tab) redeploys the site at
+#   https://<your-username>.github.io/<repo-name>/
+#
+# Only the already-built, tested palette_picker.html is published (as index.html and under its own name),
+# plus the README screenshots. Nothing else from the repository is copied into the site.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one deployment at a time; don't cancel a run that is already deploying.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Stage the site (only the files that should be public)
+        run: |
+          set -euo pipefail
+          test -f palette_picker.html
+          rm -rf _site
+          mkdir -p _site
+          cp palette_picker.html _site/index.html
+          cp palette_picker.html _site/palette_picker.html
+          if [ -d docs/screenshots ]; then
+            mkdir -p _site/docs
+            cp -r docs/screenshots _site/docs/screenshots
+          fi
+          touch _site/.nojekyll
+          echo "Site contents:"
+          find _site -type f | sort
+
+      - name: Upload the site as the Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+          include-hidden-files: true   # keep .nojekyll
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
