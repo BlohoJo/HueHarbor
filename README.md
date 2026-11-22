@@ -1,4 +1,4 @@
-# Hue Harbor
+# [Hue Harbor](https://blohojo.github.io/HueHarbor/)
 
 **A color-palette browser that starts from any color you choose — one file, no install, works offline.**
 
