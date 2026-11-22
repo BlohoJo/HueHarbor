@@ -63,30 +63,28 @@ Your settings and favorites lists are stored by your browser (in its *local stor
 
 > **Tip:** bookmark the file or keep it somewhere easy to find. Moving the file to a different folder makes the browser treat it as a new page, so your lists will not follow it. Export your lists as JSON first (see [My lists](#8-my-lists-favorites)) and import them again afterwards.
 
-Prefer not to download anything? If the repository owner has turned on GitHub Pages (see the next section), the same app runs in your browser at **`https://<username>.github.io/<repo-name>/`** — for this repository that is `https://BlohoJo.github.io/<repo-name>/`, where `<repo-name>` is the name shown at the top of the GitHub page. It is exactly the same file; your lists are simply stored under that web address instead of under the downloaded file.
+Prefer not to download anything? The same app runs in your browser at **<https://blohojo.github.io/HueHarbor/>** (see [Live demo / Publishing on GitHub Pages](#live-demo--publishing-on-github-pages)). It is exactly the same file; your lists are simply stored under that web address instead of under the downloaded file.
 
 ---
 
 ## Live demo / Publishing on GitHub Pages
 
-The repository includes a ready-made GitHub Actions workflow (`.github/workflows/pages.yml`) that publishes the app as a website on **GitHub Pages**, GitHub's free static hosting. Once it is switched on, the live app is at:
+The app is published with **GitHub Pages**, GitHub's free static hosting, at:
 
-```
-https://<your-username>.github.io/<repo-name>/
-```
+**<https://blohojo.github.io/HueHarbor/>**
 
-(for example `https://BlohoJo.github.io/hue-harbor/` if the repository is called `hue-harbor`).
+It is the same single file as the download — nothing is installed and no data leaves your browser.
 
-**One-time setup** (done once by the repository owner, on GitHub):
+**How it works (the default, nothing to run):** the repository root contains `index.html`, a byte-for-byte copy of `palette_picker.html`, plus an empty file called `.nojekyll`. With the Pages source set to a branch, GitHub serves `index.html` as the homepage; `.nojekyll` tells GitHub to publish the files exactly as they are (without it, GitHub would turn `README.md` into the homepage instead). Both HTML files are written by the build script, and `python3 build/check_site.py` confirms they are identical.
+
+**Setting it up on a fork or a new copy** (once, by the repository owner):
 
 1. Open the repository on GitHub and click **Settings**.
 2. In the sidebar, under *Code, planning, and automation*, click **Pages**.
-3. Under **Build and deployment**, set **Source** to **GitHub Actions**. (GitHub may suggest workflow templates — skip them; the workflow is already in the repository.)
-4. Push to the `main` branch (or open the **Actions** tab, choose *Deploy to GitHub Pages* and click **Run workflow**). The first run takes about a minute; the finished run shows the site's address.
+3. Under **Build and deployment**, set **Source** to **Deploy from a branch**, choose **`main`** and **`/ (root)`**, and click **Save**.
+4. Wait a minute or two, then open `https://<your-username>.github.io/<repo-name>/`. Every later push to `main` updates the site automatically.
 
-After that, **every push to `main` redeploys the site automatically** — there is no build step, because the workflow publishes the committed, tested `palette_picker.html` exactly as it is (as `index.html`, and also under its own name so `…/palette_picker.html` works too). Only that file, the README screenshots and a `.nojekyll` marker are uploaded; nothing else from the repository becomes part of the site.
-
-> **Before you publish:** keep private working notes out of the repository. `dirty_findings.md` is listed in `.gitignore` so it will not be committed again — if an older copy is still in your history, remove it with `git rm --cached dirty_findings.md` and commit before pushing. Also check for any local tooling metadata files you do not want public and add them to `.gitignore` yourself.
+**Optional: publishing with GitHub Actions instead.** The repository also contains a workflow (`.github/workflows/pages.yml`) for owners who prefer the *GitHub Actions* source. It uploads only `palette_picker.html` (as `index.html` and under its own name), the README screenshots and a `.nojekyll` marker. To use it, set **Source** to **GitHub Actions** in the same settings page, then open the **Actions** tab, choose *Deploy to GitHub Pages* and click **Run workflow**. The workflow is run by hand on purpose: while the source is *Deploy from a branch*, GitHub rejects Actions deployments, so an automatic run on every push would fail each time. If you switch to the Actions source permanently, you can make it automatic again by adding `push: branches: [main]` under `on:` in the workflow file.
 
 ---
 
@@ -299,6 +297,8 @@ Everything the user needs is `palette_picker.html`; the rest of the repository i
 
 ```
 palette_picker.html   the app: a single self-contained file (generated — do not edit by hand)
+index.html            identical copy served by GitHub Pages (generated — do not edit by hand)
+.nojekyll             empty marker: tells GitHub Pages to serve the files as they are
 build/
   head.html           <head>, CSS
   body.html           page markup
@@ -306,7 +306,8 @@ build/
   app1.js             color math (RGB/HSL/OKLCH/CMYK) and palette generation
   app2.js             state, persistence, UI, library, lists, exports, background/theme
   app3.js             Preview: SVG scenes, photo effects, PNG export worker
-  assemble.py         concatenates the parts above into palette_picker.html
+  assemble.py         concatenates the parts above into palette_picker.html and index.html
+  check_site.py       checks index.html == palette_picker.html and that .nojekyll exists
   browsers.py         shared Playwright browser selection for the tests
   test.py             main functional tests
   test_export.py      .ase / .gpl file-format checks
