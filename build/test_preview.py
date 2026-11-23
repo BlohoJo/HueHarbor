@@ -8,7 +8,9 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
 TEST_IMG = test_photo()
-SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'photo']
+SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'text', 'photo']
+SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash']
+PALS = {2: ['#2f6ea5', '#f2c14e'], 3: ['#1b263b', '#e0e1dd', '#e63946'], 4: ['#F5E1D5', '#DCF0E4', '#F1E2F3', '#7B2CBF'], 5: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'], 6: ['#111111', '#333333', '#555555', '#999999', '#cccccc', '#ffffff']}
 errors, fails = [], []
 def check(cond, msg):
     print(('ok   ' if cond else 'FAIL ') + msg)
@@ -35,12 +37,14 @@ with sync_playwright() as pw:
     page.locator(f'.pal >> nth={first} >> button:has-text("Preview")').click()
     page.wait_for_selector('.pv-box')
     check(page.locator('.pv-stage svg').count() == 1, 'preview opens with an SVG scene')
-    check(page.locator('.pv-tabs button').count() == 6, 'six scene tabs')
+    check(page.locator('.pv-tabs button').count() == 7, 'seven scene tabs')
     # every scene renders; screenshot each
     for sid in SCENES:
         page.click(f'.pv-tabs button[data-scene="{sid}"]'); page.wait_for_timeout(120)
         if sid == 'photo':
             ok = page.locator('.pv-stage canvas').count() == 1 and page.evaluate(CANVAS_HASH) is not None
+        elif sid == 'text':
+            ok = page.locator('.pv-stage .pv-text h1').count() == 1 and page.locator('.pv-stage .pv-text p').count() >= 2
         else:
             ok = page.locator('.pv-stage svg').count() == 1 and page.evaluate("()=>document.querySelector('.pv-stage svg').getBBox().width>0 || true")
             # at least 3 distinct palette colours must appear in the scene markup
@@ -69,6 +73,130 @@ with sync_playwright() as pw:
     # 2-colour palettes derive roles without error
     two = page.evaluate("()=>{const R=pvRoles(['#2f6ea5','#f2c14e'],0,'light');return [R.bg,R.surface,R.primary,R.accent,R.secondary,R.tertiary,R.text].every(c=>/^#[0-9a-f]{6}$/.test(c))}")
     check(two, '2-colour palette derives all roles')
+    # ---- Light/Dark must change the scene after any number of shuffles (1..10), in every role mode ----
+    page.click('.pv-tabs button[data-scene="web"]')
+    STAGE = "()=>document.querySelector('.pv-stage').innerHTML"
+    SET_MODE = "m=>{pv.precise=m!=='normal';for(const k in pv.exact)pv.exact[k]=m==='exact';pv.shuffle=0;renderPreview();}"
+    for mode in ('normal', 'precise', 'exact'):
+        page.evaluate(SET_MODE, mode); same = []
+        for sN in range(1, 11):
+            page.click('#pvShuffle')
+            page.click('.pv-tools .seg button[data-base="dark"]'); d = page.evaluate(STAGE)
+            pressed = page.evaluate("()=>document.querySelector('.pv-tools .seg button[data-base=dark]').getAttribute('aria-pressed')")
+            page.click('.pv-tools .seg button[data-base="light"]'); l = page.evaluate(STAGE)
+            if d == l or pressed != 'true': same.append(sN)
+        check(not same, f'{mode}: Light/Dark changes the scene after 1..10 shuffles (failed after {same})')
+    # the old failure: in the "bold" half of the shuffle cycle the background must still follow the base
+    bad_bold = page.evaluate("""()=>{const out=[];for(const p of collection().items){const n=p.colors.length;for(let s=0;s<2*n;s++){const L=pvRoles(p.colors,s,'light'),D=pvRoles(p.colors,s,'dark');
+        if(!(pvL(L.bg)>.5&&pvL(D.bg)<.5))out.push([p.name,s,L.bg,D.bg]);}}return out.slice(0,5);}""")
+    check(not bad_bold, f'normal mode: Light base gives a light background and Dark a dark one for every shuffle {bad_bold}')
+    page.evaluate(SET_MODE, 'normal')
+    # ---- Precise mode: every exact palette hex is on screen, for 2..6 colours, both exact-count settings, every type ----
+    orig_cols = page.evaluate("()=>collection().items[pv.idx].colors.slice()")
+    MISSING = """()=>{const p=collection().items[pv.idx];const html=document.querySelector('.pv-stage').innerHTML.toLowerCase();
+        const rgb=c=>{const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);return `rgb(${r}, ${g}, ${b})`;};
+        const chips=[...document.querySelectorAll('.pv-role')].map(e=>e.dataset.hex.toLowerCase());
+        const codes=[...document.querySelectorAll('.pv-role code')].map(e=>e.textContent.toLowerCase());
+        return {scene:p.colors.filter(c=>{c=c.toLowerCase();return !html.includes(c)&&!html.includes(rgb(c));}),
+                chips:p.colors.filter(c=>!chips.includes(c.toLowerCase())||!codes.includes(c.toLowerCase()))};}"""
+    problems = []
+    for n, cols in PALS.items():
+        page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;}", cols)
+        for mode in ('precise', 'exact'):
+            page.evaluate(SET_MODE, mode)
+            for sid in SVG_SCENES + ['text']:
+                page.click(f'.pv-tabs button[data-scene="{sid}"]')
+                for sh in range(0, 3):
+                    for base in ('light', 'dark'):
+                        page.evaluate("b=>{pv.base=b;renderPreview();}", base)
+                        m = page.evaluate(MISSING)
+                        if m['scene'] or m['chips']: problems.append((n, mode, sid, sh, base, m))
+                        if sid == 'text' and mode == 'exact' and sh == 0 and base == 'light':
+                            lv = page.evaluate("()=>[...document.querySelectorAll('.pv-text h1,.pv-text h2,.pv-text h3,.pv-text p')].map(e=>e.className)")
+                            want = {2: 1, 3: 2, 4: 3, 5: 5, 6: 5}[n]
+                            check(len(lv) == want, f'Text preview, exact count, {n} colours: {want} level(s) ({lv})')
+                            if n == 2: check(lv == ['pv-tx-display'], '2 colours: a single heading')
+                    page.click('#pvShuffle')
+                check(page.evaluate("()=>document.querySelector('.pv-tools .seg button[data-base=dark]').getAttribute('aria-pressed')") == 'true', f'{mode} {sid} {n}: Dark stays selected across shuffles')
+                check(page.evaluate("()=>document.querySelector('#pvPrecise').checked"), f'{mode} {sid} {n}: Precise checkbox reflects state')
+                check(page.evaluate("()=>document.querySelector('#pvExact').checked") == (mode == 'exact'), f'{mode} {sid} {n}: exact-count checkbox reflects state')
+                if n == 4 and mode == 'exact' and sid == 'web': page.screenshot(path=shot('pv_precise_exact_4.png'))
+                if n == 4 and mode == 'precise' and sid == 'web': page.screenshot(path=shot('pv_precise_4.png'))
+            page.evaluate("()=>{pv.base='light';}")
+        # shuffle in Precise mode permutes the exact colours (chips keep the same set of hexes, different assignment)
+        page.evaluate(SET_MODE, 'precise'); page.click('.pv-tabs button[data-scene="web"]')
+        c0 = page.evaluate("()=>[...document.querySelectorAll('.pv-role')].map(e=>e.dataset.role+':'+e.dataset.hex)")
+        page.click('#pvShuffle')
+        c1 = page.evaluate("()=>[...document.querySelectorAll('.pv-role')].map(e=>e.dataset.role+':'+e.dataset.hex)")
+        check(c0 != c1 and sorted(x.split(':')[1] for x in c0 if x.split(':')[1].lower() in [c.lower() for c in cols]) == sorted(x.split(':')[1] for x in c1 if x.split(':')[1].lower() in [c.lower() for c in cols]), f'{n} colours: Shuffle in Precise mode permutes the exact colours ({c0} -> {c1})')
+    check(not problems, f'Precise mode shows every exact palette hex in scene and chips ({len(problems)} problems, first: {problems[:3]})')
+    # exact-count layouts draw nothing but palette colours (no opacity, no derived fills)
+    non_exact = page.evaluate("""()=>{const out=[];for(const [n,cols] of Object.entries(%s)){for(const sid of ['web','poster','room','outfit','dash']){for(let s=0;s<2*cols.length;s++)for(const b of ['light','dark']){
+        const svg=pvExactScene(sid,pvExactRoles(cols,s,b));const fills=[...svg.matchAll(/(?:fill|stroke)="(#[0-9a-fA-F]{6})"/g)].map(m=>m[1].toLowerCase());
+        const low=cols.map(c=>c.toLowerCase());const stray=fills.filter(f=>!low.includes(f));if(stray.length||/opacity=/.test(svg))out.push([n,sid,s,b,stray.slice(0,2)]);}}}return out.slice(0,5);}""" % str({k: v for k, v in PALS.items() if k <= 5}).replace("'", '"'))
+    check(not non_exact, f'exact-count layouts use only palette colours and no opacity {non_exact}')
+    page.evaluate("c=>{collection().items[pv.idx].colors=c;}", orig_cols); page.evaluate(SET_MODE, 'normal')
+    # ---- Text preview: fonts and editing ----
+    page.click('.pv-tabs button[data-scene="text"]')
+    nfonts = page.evaluate("()=>PV_FONTS.length"); cats = page.evaluate("()=>[...new Set(PV_FONTS.map(f=>f.cat))]")
+    check(nfonts >= 30 and len(cats) == 5, f'{nfonts} embedded fonts in {len(cats)} categories {cats}')
+    check(page.locator('#pvFont option').count() == nfonts + 1 and page.locator('#pvFont optgroup').count() == 5, 'font picker lists every font under its category')
+    fam0 = page.evaluate("()=>getComputedStyle(document.querySelector('.pv-tx-display')).fontFamily")
+    loaded_ok = True
+    for fid in ('playfair-display', 'jetbrains-mono', 'pacifico', 'bebas-neue'):
+        page.select_option('#pvFont', fid)
+        fam = page.evaluate("id=>PV_FONTS.find(f=>f.id===id).family", fid)
+        try:
+            page.wait_for_function("f=>document.fonts.check('16px \"'+f+'\"')&&[...document.fonts].some(x=>x.family.replace(/\"/g,'')===f&&x.status==='loaded')", arg=fam, timeout=5000)
+        except Exception:
+            loaded_ok = False; print('font not loaded', fid)
+        css = page.evaluate("()=>getComputedStyle(document.querySelector('.pv-tx-display')).fontFamily")
+        if fam not in css: loaded_ok = False; print('font not applied', fid, css)
+    check(loaded_ok, 'embedded fonts decode via FontFace and apply to the Text preview')
+    page.screenshot(path=shot('pv_text_font.png'))
+    page.select_option('#pvFont', 'system'); check(page.evaluate("()=>getComputedStyle(document.querySelector('.pv-tx-display')).fontFamily") == fam0, 'System default restores the system font stack')
+    page.click('#pvEditText'); page.wait_for_selector('.pv-fields')
+    check(page.locator('.pv-fields [data-field]').count() == 6, 'six editable text fields in normal mode')
+    page.fill('[data-field="heading"]', 'Edited heading'); check(page.inner_text('.pv-tx-heading') == 'Edited heading', 'typing updates the heading live')
+    check(page.evaluate("()=>document.activeElement&&document.activeElement.dataset.field==='heading'"), 'field keeps focus while typing')
+    page.fill('[data-field="body"]', 'Short body.'); check(page.inner_text('.pv-tx-body') == 'Short body.', 'textarea updates the body live')
+    page.select_option('#pvFont', 'lora'); check(page.inner_text('.pv-tx-heading') == 'Edited heading', 'edited text survives a font change')
+    page.screenshot(path=shot('pv_text_edit.png'))
+    page.click('#pvResetText'); check(page.inner_text('.pv-tx-heading') == 'Every palette tells a story', 'Reset text restores the sample copy')
+    page.click('#pvEditText'); check(page.locator('.pv-fields').count() == 0, 'Done editing hides the fields')
+    # Text preview roles (normal): six levels mapped to Primary/Text/Accent/Text/derived muted/Accent
+    titles = page.evaluate("()=>[...document.querySelectorAll('.pv-text h1,.pv-text h2,.pv-text h3,.pv-text p')].map(e=>e.title.split(':')[0])")
+    check(titles == ['Primary', 'Text', 'Accent', 'Text', 'Muted (derived)', 'Accent'], f'normal Text preview levels map to roles {titles}')
+    # ---- subtitle swatches: <img alt=hex>, keyboard reachable, click copies ----
+    sw = page.evaluate("()=>[...document.querySelectorAll('.pv-sub .pv-sw')].map(b=>({hex:b.dataset.hex,alt:b.querySelector('img').alt,title:b.title,label:b.getAttribute('aria-label'),src:b.querySelector('img').src.slice(0,19)}))")
+    cols_now = page.evaluate("()=>collection().items[pv.idx].colors.map(c=>c.toUpperCase())")
+    check([x['hex'] for x in sw] == cols_now and all(x['alt'] == x['hex'] and x['hex'] in x['title'] and x['hex'] in x['label'] and x['src'] == 'data:image/svg+xml,' for x in sw), f'subtitle shows one SVG <img> swatch per colour with alt = hex {sw}')
+    check(page.locator('.pv-sub').inner_text().count('#') == 0, 'the hex list is gone from the subtitle text')
+    page.evaluate("()=>navigator.clipboard.writeText('')")
+    page.locator('.pv-sub .pv-sw >> nth=1').focus(); page.keyboard.press('Enter'); page.wait_for_timeout(150)
+    clip = page.evaluate("()=>navigator.clipboard.readText()")
+    check(clip == cols_now[1], f'Enter on a focused swatch copies its hex ({clip})')
+    page.locator('.pv-sub .pv-sw >> nth=0').click()
+    try: page.wait_for_function("()=>document.querySelector('.pv-sub .pv-sw').classList.contains('copied')", timeout=2000); fb = True
+    except Exception: fb = False
+    check(fb and 'copied' in page.inner_text('#toast'), 'click gives brief feedback (highlight + toast)')
+    page.wait_for_timeout(150); check(page.evaluate("()=>navigator.clipboard.readText()") == cols_now[0], 'click copies the hex')
+    # Clipboard API unavailable: the execCommand fallback still copies
+    page.evaluate("()=>{window.__clip=navigator.clipboard;Object.defineProperty(navigator,'clipboard',{value:undefined,configurable:true});}")
+    page.locator('.pv-sub .pv-sw >> nth=2').click(); page.wait_for_timeout(150)
+    check(cols_now[2] in page.inner_text('#toast'), 'fallback copy path reports success without the Clipboard API')
+    page.evaluate("()=>{Object.defineProperty(navigator,'clipboard',{value:window.__clip,configurable:true});}")
+    # ---- dark-mode counter contrast ----
+    page.evaluate("()=>{S.theme='dark';S.bg='#ffffff';save();applyTheme();renderPreview();}")
+    cc = page.evaluate("()=>{const e=document.querySelector('.pv-head .counter');const cs=getComputedStyle(e);const panel=getComputedStyle(document.querySelector('.pv-box')).backgroundColor;const toHex=s=>'#'+s.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join('');return [cs.color,panel,contrast(toHex(cs.color),toHex(panel))];}")
+    check(cc[2] >= 4.5, f'Preview counter is readable in dark mode on a white page background (contrast {cc[2]:.2f})')
+    page.screenshot(path=shot('pv_dark_counter.png'))
+    low = page.evaluate("""()=>{const panel=getComputedStyle(document.querySelector('.pv-box')).backgroundColor;const toHex=s=>'#'+s.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join('');const out=[];
+        for(const e of document.querySelectorAll('.pv-box .pv-head *, .pv-box .pv-tools *, .pv-box .contrast-note, .pv-box .pv-tabs button')){if(!e.textContent.trim()||e.children.length&&!e.childNodes[0].nodeValue)continue;const cs=getComputedStyle(e);
+        let bgEl=e;while(bgEl&&getComputedStyle(bgEl).backgroundColor==='rgba(0, 0, 0, 0)')bgEl=bgEl.parentElement;const bg=bgEl?getComputedStyle(bgEl).backgroundColor:panel;const c=contrast(toHex(cs.color),toHex(bg));if(c<4.5)out.push([e.tagName+'.'+e.className,e.textContent.trim().slice(0,20),c.toFixed(2)]);}return out;}""")
+    check(not low, f'all Preview dialog text reaches 4.5:1 in dark mode {low}')
+    page.evaluate("()=>{S.theme='light';S.bg=null;save();applyTheme();renderPreview();}")
+    page.click('.pv-tabs button[data-scene="web"]')
     # stepping: next/prev + keyboard
     page.evaluate("()=>{pv.idx=0;renderPreview();}")
     page.click('#pvNext'); check(page.evaluate('pv.idx') == 1 and '2 of' in page.inner_text('.pv-head .counter'), 'Next steps palette')
