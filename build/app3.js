@@ -498,7 +498,7 @@ function pvTextLevels(R,exactCount){
     {k:'display',c:R.exact.length?R.primary:R.primaryText,role:'Primary'},{k:'heading',c:R.text,role:'Text'},{k:'sub',c:R.exact.length?R.accent:R.accentText,role:'Accent'},
     {k:'body',c:R.text,role:'Text',panel:true},{k:'caption',c:R.exact.length?R.text:R.muted,role:R.exact.length?'Text':'Muted (derived)',panel:true},{k:'link',c:R.exact.length?R.accent:R.accentText,role:'Accent',panel:true}],text:t};
   const X=R,n=X.n,lv=[{k:'display',c:X.text,role:'Text'}];
-  if(n>=3)lv.push({k:'sub',c:X.primary,role:'Primary'});
+  if(n>=3)lv.push({k:'sub',c:X.pt,role:X.pt===X.primary?'Primary':'Text'});
   if(n>=4)lv.push({k:'body',c:X.text,role:'Text',panel:true});
   if(n>=5){lv.push({k:'caption',c:X.accent,role:'Accent',panel:n>=4});lv.push({k:'link',c:X.accent,role:'Accent',panel:n>=4});}
   return{bg:X.bg,panel:n>=4?X.surface:null,levels:lv,text:t,extras:X.extras||[]};
@@ -515,7 +515,7 @@ function pvTextScene(R,exactCount){
   // Precise modes: any palette colour the levels could not place is shown as an exact swatch strip
   const shown=new Set([L.bg,L.panel,...L.levels.map(l=>l.c)].filter(Boolean).map(c=>c.toLowerCase()));
   const rest=(R.exact||[]).filter(c=>!shown.has(c.toLowerCase()));
-  if(rest.length)inner.append(h('div',{class:'pv-text-strip',role:'img','aria-label':'Remaining palette colours'},...rest.map(c=>h('i',{style:'background:'+c,title:c.toUpperCase()}))));
+  if(rest.length)wrap.append(h('div',{class:'pv-text-strip',role:'img','aria-label':'Remaining palette colours'},...rest.map(c=>h('i',{style:'background:'+c,title:c.toUpperCase()}))));
   return wrap;
 }
 /* Copy-to-clipboard swatches for the dialog subtitle: an <img> whose alt text is the hex, inside a real button */
