@@ -95,3 +95,66 @@ reports each as loaded and applied), text editing/reset, swatch alt text + clipb
 
 Result: 313 checks passed, 0 failed, 0 page errors/console errors. Not tested: the Windows binary itself
 (only the Linux build of the same version); screenshots in `shots/ffdev/`.
+
+## Round 4 — Products scene, Magnify overlay, Vertical bars / Diagonal
+
+Scope: three changes — the new **Products** preview scene (2 × 2 grid of flat
+inline-SVG products: headphones, tumbler, smartwatch, controller), the Magnify
+overlay readability fix (both sample lines moved fully over the pattern;
+line 2 switches between white and near-black from the colours hit-tested
+beneath it), and the Magnify pattern list (the old "Diagonal", which was equal
+vertical bars, renamed **Vertical bars**; a new true 45° **Diagonal** added
+right after it).
+
+Method: two independent reviewer passes (a runtime pass in Chromium and
+Firefox, and a static line-by-line review of `build/app2.js`, `build/app3.js`,
+`build/head.html`, `build/test_magnify.py`, the Products block of
+`build/test_preview.py` and the README), each given `README.md` and the internal
+findings document, plus an adversarial probe written for this round
+(`2 / 3 / 4 / 5 / 6 / 8 / 12`-colour palettes, five near-whites, five
+near-blacks, light and dark app theme, all six patterns × four backgrounds,
+window resize with Magnify open, Pattern pressed 7 times, Next on the last
+palette, Preview opened from Magnify on the Diagonal pattern, Your photo →
+Products tab switching, Esc / focus return) in both browsers.
+
+| # | Finding | Severity | Disposition |
+|---|---------|----------|-------------|
+| 1 | Magnify, palettes with many colours (8 and 12 tested): under the Panels, Vertical bars, Diagonal and Vertical stripes patterns both a very dark and a very light cell can lie beneath line 2, so neither white nor near-black reaches 3 : 1 everywhere (worst case 1.37 : 1 … 2.63 : 1 with the subtle shadow only). Found by the adversarial probe; not reachable with the 2–5-colour generated palettes, but imported lists allow up to 12 colours. | Minor (cosmetic) | **Fixed** — `magUpdateSample()` now also records the best worst-case ratio; below 3 : 1 it adds the class `on-mixed`, which replaces the subtle shadow with a strong halo of the opposite colour (`build/head.html`). Single-tone palettes are unchanged. Covered by a new check in `test_magnify.py` (8-colour Vertical bars → halo; pastel palette → no halo). |
+| 2 | The static reviewer flagged UI strings using British "colour" against README prose using American "color". | — | **Not a defect** — this is the project's convention (UI British, README prose American), stated in the brief and the README; no change. |
+| 3 | The static reviewer asked whether `PV_PRODUCT_EXACT` handles 6 + colours. | — | **Not a defect** — as for every SVG scene, `pvExactScene` uses the five-colour layout and appends the strip of remaining colours; verified in the contact sheets (6-colour greyscale palette shows the sixth colour in the strip) and by `test_preview.py` (every exact hex present for 6 colours). |
+| 4 | Migration of a saved Magnify pattern index. | — | **Not needed** — `mag` (`idx, pattern, bg, rot`) is held in memory only; `localStorage` holds the settings object and the lists, neither of which stores a pattern (verified by grep and at runtime). A user who had the old "Diagonal" selected simply sees the pattern list start at Panels next time, as before. |
+| 5 | Your photo with a one-colour palette throws in `pvRamp` (pre-existing, not part of this change). | — | **Not reachable** — generated palettes have 2–5 colours and `cleanItem()` rejects imported palettes with fewer than 2 (or more than 12) colours; left as is. |
+
+Checked, none found: `test.py`, `test_export.py`, `test_bg.py`,
+`test_ff_probe.py`, `test_preview.py`, `test_magnify.py`, `test_perf.py` exit 0
+in Chromium and Firefox (zero console / page errors); `test_ffdev.py` in the
+stock Firefox Developer Edition build: 361 checks, 0 failed; Products renders
+four labelled cards for every palette size × normal / Precise / exact ×
+Light / Dark × shuffles (labels ≥ 4.5 : 1 normal, ≥ 3 : 1 Precise; every exact
+hex in scene and chips; Light ≠ Dark at every shuffle step, or only at the
+middle-colour steps of odd palettes in Precise modes, as in every scene);
+Magnify overlay lines inside the pattern for all 6 patterns × 4 backgrounds ×
+rotations and after Rotate / Background / Prev / Next / Shuffle / resize, line 2
+always the better of white / near-black (12.25 : 1 on the user's navy Panels
+case); Diagonal edges at 45°, stripes cycle through every colour, fill the
+stage and rotate on click; Vertical bars equals the old geometry; Pattern
+button order and wrap; photo controls absent on Products; Esc returns focus.
+
+Verdict after fix: PASS.
+
+## Round 5 — verification of the Round 4 fix
+
+A fresh reviewer pass re-read `magUpdateSample()` and the `.on-mixed` rules,
+probed the 8-colour and the navy 3-colour palette through all 6 patterns × 4
+backgrounds (line 2 inside the stage, colour and shadow recorded, screenshots
+inspected), re-ran `test_magnify.py` and `test_preview.py` in Chromium and
+Firefox, and re-checked the Products tab with a 5-colour palette in normal,
+Precise and exact-count modes.
+
+Findings: none from the reviewer. One hardening added while writing the
+saved-state test: `renderMagnify()` now wraps an out-of-range `mag.pattern`
+(e.g. a stale index) into `0 … 5` instead of rendering a nameless pattern.
+Confirmed: the halo class is added only when the best
+worst-case ratio is below 3 : 1 and applies to both text colours; the subtle
+shadow remains otherwise; the overlay stays inside the stage; the four
+products and their labels read in every mode. Verdict: PASS.

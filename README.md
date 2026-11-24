@@ -44,8 +44,8 @@ Hue Harbor is an independent, clean-room tribute to a mid-1990s Windows color-ha
 - **Classic library** — browse all 3,400 recovered color sets by mood, by theory scheme or by any of the 152 base colors.
 - **Swatch details** — click a color for HEX, RGB, HSL, OKLCH, an estimated CMYK and the nearest classic base color.
 - **One-click copying** — copy a whole palette as HEX, CSS variables or JSON.
-- **Magnify** — see a palette in five layout patterns with sample text.
-- **Preview** — apply a palette to five sample designs (website, poster, interior, outfit, dashboard), to a **typography sample** with 36 embedded fonts, or to **your own photo** (gradient map, posterize, duotone) and download the result as a PNG. A **Precise** mode shows every palette color with its exact value.
+- **Magnify** — see a palette in six layout patterns with sample text.
+- **Preview** — apply a palette to six sample designs (website, poster, interior, outfit, dashboard, products), to a **typography sample** with 36 embedded fonts, or to **your own photo** (gradient map, posterize, duotone) and download the result as a PNG. A **Precise** mode shows every palette color with its exact value.
 - **My lists** — up to 30 favorites lists, exported and imported as JSON.
 - **Swatch-file export** — `.ase` (Adobe Swatch Exchange) and `.gpl` (GIMP palette) for single palettes, whole lists, or everything on screen.
 - **Page background control** and a **light / dark theme**.
@@ -182,15 +182,16 @@ To copy a whole palette, use the **HEX**, **CSS** (custom properties) or **JSON*
 
 ### 6. Magnify
 
-**Magnify** opens the palette large, in one of five layout patterns — *Panels, Nested, Horizontal bars, Vertical stripes, Diagonal* — with sample text on each color. Click any area (or press **Rotate**) to rotate the colors around, press **Pattern** to change the layout and **Background** to cycle the backdrop behind the sample. **‹ Prev** / **Next ›** or the ← → keys step to the previous or next palette, and **Copy HEX**, **Preview** and **☆ Save** are available from here too.
+**Magnify** opens the palette large, in one of six layout patterns — *Panels, Nested, Horizontal bars, Vertical bars, Diagonal, Vertical stripes* — with sample text on each color. *Vertical bars* is the former "Diagonal" (one equal bar per color); *Diagonal* is a true 45° stripe pattern that cycles through the palette. Click any area (or press **Rotate**) to rotate the colors around, press **Pattern** to change the layout and **Background** to cycle the backdrop behind the sample. The two sample lines sit inside the pattern area; the lower one (the view name, template and palette number) switches between white and near-black according to the colors actually beneath it, so it stays readable on every pattern and background. **‹ Prev** / **Next ›** or the ← → keys step to the previous or next palette, and **Copy HEX**, **Preview** and **☆ Save** are available from here too.
 
 ![Magnify view](docs/screenshots/06_magnify.png)
+![Magnify: the Diagonal pattern](docs/screenshots/mag_diagonal.png)
 
 ### 7. Preview — sample designs and your photo
 
-**Preview** applies the palette to five original sample designs, a typography sample and a photo:
+**Preview** applies the palette to six original sample designs, a typography sample and a photo:
 
-- **Website**, **Poster**, **Interior**, **Outfit** and **Dashboard** tabs. Hue Harbor assigns the colors to roles (background, surface, primary, accent, text) automatically: text is chosen for WCAG contrast against its background, and missing roles are derived as lighter or darker versions of the palette colors. Use **⇄ Shuffle roles** to try a different assignment and **Light / Dark** to change the base. The role chips under the design show which color plays which role; the swatches in the dialog's header are the palette itself — click one (or focus it and press Enter) to copy that hex.
+- **Website**, **Poster**, **Interior**, **Outfit**, **Dashboard** and **Products** tabs. Hue Harbor assigns the colors to roles (background, surface, primary, accent, text) automatically: text is chosen for WCAG contrast against its background, and missing roles are derived as lighter or darker versions of the palette colors. Use **⇄ Shuffle roles** to try a different assignment and **Light / Dark** to change the base. The role chips under the design show which color plays which role; the swatches in the dialog's header are the palette itself — click one (or focus it and press Enter) to copy that hex. **Products** is a 2 × 2 grid of flat product illustrations — over-ear headphones, an insulated tumbler, a smartwatch and a gaming controller — each split into two or three colors (cups and band, body and lid, case and strap, body and buttons) with a labelled card behind it.
 - **Text** shows the palette on typography: a display heading, heading, subheading, body text, caption and link on the background and a surface panel. Pick one of 36 embedded fonts (sans-serif & geometric, serif & slab, monospace, script & handwritten, display) from the **Font** menu — they are built into the file, so this works offline — and press **Edit text…** to replace the sample copy with your own (**Reset text** brings the sample back). The fonts are regular-weight Latin subsets (about 780 KB of WOFF2, which grows to roughly 1.05 MB once base64-encoded into the file) under the SIL Open Font License or Apache 2.0; see [FONTS_NOTICE.md](FONTS_NOTICE.md) for each font's designer and license.
 - **Precise** (checkbox under the design) makes every palette color appear with its **exact** value — nothing tinted, shaded or faded — and prints the hex on each role chip. With Precise on, a second checkbox, **Use exact number of colours**, chooses between two ways of doing that (remembered per preview type):
   - *on* — a layout designed for the palette's own color count (2, 3, 4 or 5 colors; palettes with more get the five-color layout plus a strip of the remaining colors). The Text preview adapts its levels too: 2 colors give one heading on a background of the other, 3 add a subheading, 4 add body text on a surface panel, 5 add a caption and link.
@@ -208,6 +209,7 @@ Inside Preview, **‹ Prev** / **Next ›** and the arrow keys move through the 
 
 ![Preview: website scene](docs/screenshots/pv_web.png)
 ![Preview: Precise mode with the exact-count layout for a four-color palette](docs/screenshots/pv_precise_exact_4.png)
+![Preview: Products scene](docs/screenshots/pv_products.png)
 ![Preview: Text preview with an embedded font](docs/screenshots/pv_text_font.png)
 ![Preview: posterize effect on the sample photo](docs/screenshots/pv_photo_poster.png)
 
@@ -323,6 +325,7 @@ build/
   test_bg.py          page-background control
   test_ff_probe.py    Firefox/Chromium behavior probes (pointer, keyboard, CSS, layout)
   test_preview.py     Preview scenes, Precise mode, Text preview and fonts, swatch copy, photo effects, PNG download
+  test_magnify.py     Magnify patterns (Vertical bars vs Diagonal geometry), overlay text placement and contrast
   test_perf.py        photo-pipeline benchmark with a 4000×3000 image
   test_ffdev.py       optional: Preview smoke run in a stock Firefox Developer Edition via geckodriver + Selenium (see its docstring)
 data/                 the recovered color data as CSV/JSON (source of data.js)
@@ -356,7 +359,7 @@ If your Playwright browsers are installed in a custom location, point Playwright
 export PLAYWRIGHT_BROWSERS_PATH=/home/ubuntu/.pw-browsers
 ```
 
-Suites: `test.py`, `test_export.py`, `test_bg.py`, `test_ff_probe.py`, `test_preview.py`, `test_perf.py`. Each prints `ERRORS []` (and `FAILS []` where applicable) and exits with status 0 when it passes. Screenshots and exported files are written to `shots/` (ignored by git); generated test images go to `~/.tmp/hueharbor-fixtures/` (override with `HH_FIXTURES=/some/dir`).
+Suites: `test.py`, `test_export.py`, `test_bg.py`, `test_ff_probe.py`, `test_preview.py`, `test_magnify.py`, `test_perf.py`. Each prints `ERRORS []` (and `FAILS []` where applicable) and exits with status 0 when it passes. Screenshots and exported files are written to `shots/` (ignored by git); generated test images go to `~/.tmp/hueharbor-fixtures/` (override with `HH_FIXTURES=/some/dir`).
 
 The modals (Help, Magnify, Preview) keep keyboard focus inside while open and return it to the button that opened them; the app also honours the operating system's *reduce motion* setting.
 

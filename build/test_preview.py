@@ -8,8 +8,8 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
 TEST_IMG = test_photo()
-SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'text', 'photo']
-SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash']
+SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'text', 'photo']
+SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product']
 PALS = {2: ['#2f6ea5', '#f2c14e'], 3: ['#1b263b', '#e0e1dd', '#e63946'], 4: ['#F5E1D5', '#DCF0E4', '#F1E2F3', '#7B2CBF'], 5: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'], 6: ['#111111', '#333333', '#555555', '#999999', '#cccccc', '#ffffff']}
 errors, fails = [], []
 def check(cond, msg):
@@ -37,7 +37,7 @@ with sync_playwright() as pw:
     page.locator(f'.pal >> nth={first} >> button:has-text("Preview")').click()
     page.wait_for_selector('.pv-box')
     check(page.locator('.pv-stage svg').count() == 1, 'preview opens with an SVG scene')
-    check(page.locator('.pv-tabs button').count() == 7, 'seven scene tabs')
+    check(page.locator('.pv-tabs button').count() == 8, 'eight scene tabs')
     # every scene renders; screenshot each
     for sid in SCENES:
         page.click(f'.pv-tabs button[data-scene="{sid}"]'); page.wait_for_timeout(120)
@@ -99,6 +99,33 @@ with sync_playwright() as pw:
         const codes=[...document.querySelectorAll('.pv-role code')].map(e=>e.textContent.toLowerCase());
         return {scene:p.colors.filter(c=>{c=c.toLowerCase();return !html.includes(c)&&!html.includes(rgb(c));}),
                 chips:p.colors.filter(c=>!chips.includes(c.toLowerCase())||!codes.includes(c.toLowerCase()))};}"""
+    # Products: four cards with four products, every exact hex present, labels readable, Shuffle + Light/Dark change it
+    page.click('.pv-tabs button[data-scene="product"]')
+    for n, cols in PALS.items():
+        page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;}", cols)
+        for mode in ('normal', 'precise', 'exact'):
+            page.evaluate(SET_MODE, mode)
+            page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
+            info = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');return {labels:[...s.querySelectorAll('text')].map(t=>t.textContent).filter(t=>/^[A-Z]+$/.test(t)),cards:s.querySelectorAll('rect[width=\"376\"]').length,texts:[...s.querySelectorAll('text')].length};}")
+            check(info['labels'] == ['HEADPHONES', 'TUMBLER', 'SMARTWATCH', 'CONTROLLER'] and info['cards'] == 4, f'Products {mode} {n}: 2x2 cards with four labelled products ({info})')
+            if mode != 'normal':
+                m = page.evaluate(MISSING); check(not m['scene'] and not m['chips'], f'Products {mode} {n}: every exact hex in the scene and chips {m if m["scene"] or m["chips"] else ""}')
+            renders, same_ld = set(), []
+            for k in range(2 * n):
+                page.evaluate("()=>{pv.base='light';renderPreview();}"); a = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML"); renders.add(a)
+                page.evaluate("()=>{pv.base='dark';renderPreview();}"); b = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
+                if a == b: same_ld.append(k)
+                page.click('#pvShuffle')
+            # in the Precise modes an odd palette has a middle colour that is the k-th from both ends, so Light and Dark coincide there (all scenes)
+            ok_ld = not same_ld or (mode != 'normal' and n % 2 == 1 and same_ld == [n // 2, n + n // 2])
+            check(len(renders) > 1 and ok_ld, f'Products {mode} {n}: Shuffle gives {len(renders)} distinct variants over {2*n} steps and Light/Dark differ at every step {same_ld}')
+            # labels must read on their card (>= 3:1 like the other exact layouts; 4.5:1 for the normal layout)
+            low = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');const cards=[...s.querySelectorAll('rect[width=\"376\"]')];const bg=s.querySelector('rect[width=\"800\"]').getAttribute('fill');const toHex=c=>c&&c.startsWith('rgb')?'#'+c.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join(''):c;return [...s.querySelectorAll('text')].filter(t=>/^[A-Z]+$/.test(t.textContent)).map((t,i)=>{const f=cards[i].getAttribute('fill');const under=toHex(f==='none'?bg:f);return [t.textContent,contrast(toHex(t.getAttribute('fill')),under).toFixed(2)];});}")
+            need = 4.5 if mode == 'normal' else 3
+            check(all(float(x[1]) >= need for x in low), f'Products {mode} {n}: card labels reach {need}:1 {low}')
+    page.evaluate(SET_MODE, 'normal'); page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;pv.base='light';pv.shuffle=0;renderPreview();}", PALS[5])
+    page.screenshot(path=shot('pv_products.png'))
+    page.evaluate(SET_MODE, 'exact'); page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;renderPreview();}", PALS[5]); page.screenshot(path=shot('pv_products_exact_5.png'))
     problems = []
     for n, cols in PALS.items():
         page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;}", cols)

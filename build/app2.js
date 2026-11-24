@@ -219,7 +219,9 @@ function openModal(box){
 function closeModal(){const layer=$('#modalLayer');if(!layer.children.length)return;layer.innerHTML='';if(modalOpener&&document.contains(modalOpener)){try{modalOpener.focus();}catch(e){}}modalOpener=null;}
 
 /* magnified pattern view */
-const MAG_PATTERNS=['Panels','Nested','Horizontal bars','Vertical stripes','Diagonal'];
+/* Pattern order: bars (horizontal, vertical, then diagonal stripes at 45°), then thin repeating stripes.
+   'Vertical bars' is the pattern that used to be called 'Diagonal' (it always drew one vertical bar per colour). */
+const MAG_PATTERNS=['Panels','Nested','Horizontal bars','Vertical bars','Diagonal','Vertical stripes'];
 const MAG_BG=['#ffffff','#d9d9d9','#4a4a4a','#000000'];
 let mag={idx:0,pattern:0,bg:0,rot:0};
 function openMagnify(idx){mag.idx=idx;mag.rot=0;renderMagnify();}
@@ -227,13 +229,18 @@ function renderMagnify(){
   const items=collection().items;mag.idx=clamp(mag.idx,0,items.length-1);const p=items[mag.idx];
   const cols=p.colors.map((_,i)=>p.colors[(i+mag.rot)%p.colors.length]);const n=cols.length;
   const stage=h('div',{class:'mag-stage',style:'background:'+MAG_BG[mag.bg]});
-  const cell=(style,c)=>h('div',{class:'cell',style:style+';background:'+c,title:'Click to rotate colours',onclick:()=>{mag.rot=(mag.rot+1)%n;renderMagnify();}});
-  const pat=MAG_PATTERNS[mag.pattern];
+  const rotate=()=>{mag.rot=(mag.rot+1)%n;renderMagnify();};
+  const cell=(style,c)=>h('div',{class:'cell',style:style+';background:'+c,'data-c':c,title:'Click to rotate colours',onclick:rotate});
+  mag.pattern=((mag.pattern|0)%MAG_PATTERNS.length+MAG_PATTERNS.length)%MAG_PATTERNS.length;const pat=MAG_PATTERNS[mag.pattern];
   if(pat==='Panels'){const w=100/n;cols.forEach((c,i)=>stage.append(cell(`left:${i*w+1}%;top:4%;width:${w-2}%;height:92%`,c)));}
   else if(pat==='Nested'){cols.forEach((c,i)=>{const inset=i*(44/n);stage.append(cell(`left:${inset}%;top:${inset}%;right:${inset}%;bottom:${inset}%`,c));});}
   else if(pat==='Horizontal bars'){const hh=100/n;cols.forEach((c,i)=>stage.append(cell(`left:0;top:${i*hh}%;width:100%;height:${hh}%`,c)));}
   else if(pat==='Vertical stripes'){const reps=4;for(let r=0;r<reps;r++)cols.forEach((c,i)=>{const w=100/(n*reps);stage.append(cell(`left:${(r*n+i)*w}%;top:0;width:${w}%;height:100%`,c));});}
-  else{cols.forEach((c,i)=>stage.append(cell(`left:${i*(100/n)}%;top:0;width:${100/n+8}%;height:100%;clip-path:polygon(0 0,100% 0,calc(100% - 40px) 100%,0 100%)`,c)));}
+  else if(pat==='Vertical bars'){const w=100/n;cols.forEach((c,i)=>stage.append(cell(`left:${i*w}%;top:0;width:${w}%;height:100%`,c)));}
+  else{// Diagonal: 45° stripes cycling through every colour; drawn as SVG parallelograms so the edges are sharp
+    const W=56,H=3000,parts=[];for(let i=0,x=-H;x<H+W;x+=W,i++)parts.push(`<polygon points="${x},0 ${x+W},0 ${x+W-H},${H} ${x-H},${H}" fill="${cols[i%n]}" data-c="${cols[i%n]}"/>`);
+    stage.append(h('div',{class:'cell diag',style:'left:0;top:0;width:100%;height:100%',title:'Click to rotate colours',onclick:rotate,html:`<svg width="100%" height="100%" aria-hidden="true">${parts.join('')}</svg>`}));
+  }
   stage.append(h('div',{class:'sample'},h('span',{class:'light'},'Sample text'),h('span',{class:'dark'},'Sample text'),h('small',{style:'color:'+textOn(MAG_BG[mag.bg])},`${p.name} · palette ${mag.idx+1} of ${items.length}`)));
   const box=h('div',{class:'box'},
     h('button',{type:'button',class:'btn small close',onclick:closeModal},'Close ✕'),
@@ -253,8 +260,20 @@ function renderMagnify(){
     ),
     h('div',{class:'row',style:'margin-top:10px;gap:6px'},...cols.map(c=>h('span',{class:'contrast-note',style:'font-family:var(--mono)'},h('span',{style:'display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid var(--border);background:'+c}),c.toUpperCase())))
   );
-  openModal(box);
+  openModal(box);magUpdateSample();
 }
+/* Second overlay line: pick white or near-black by the worst-case contrast against the colours actually under the text
+   (sampled from the rendered cells, so it follows the pattern, Rotate, Background and the palette). */
+function magUpdateSample(){
+  const st=$('.mag-stage'),sm=st&&st.querySelector('.sample small');if(!sm)return;
+  const rg=document.createRange();rg.selectNodeContents(sm);const r=rg.getBoundingClientRect();
+  const under=new Set();
+  if(r.width){for(let i=0;i<=10;i++){const x=r.left+1+(r.width-2)*i/10;for(const y of[r.top+2,(r.top+r.bottom)/2,r.bottom-2]){const e=document.elementsFromPoint(x,y).find(el=>el.dataset&&el.dataset.c&&st.contains(el));under.add(e?e.dataset.c:MAG_BG[mag.bg]);}}}
+  if(!under.size)under.add(MAG_BG[mag.bg]);
+  const[best,ratio]=['#ffffff','#111111'].map(c=>[c,Math.min(...[...under].map(u=>contrast(c,u)))]).sort((a,b)=>b[1]-a[1])[0];
+  sm.style.color=best;sm.classList.toggle('on-dark',best==='#ffffff');sm.classList.toggle('on-light',best!=='#ffffff');sm.classList.toggle('on-mixed',ratio<3);
+}
+window.addEventListener('resize',()=>{if($('.mag-stage'))magUpdateSample();});
 
 /* help / about */
 function openHelp(){

@@ -182,7 +182,13 @@ input.mono{font-family:var(--mono)}
 .modal .close{float:right}
 .mag-stage{border-radius:var(--radius);overflow:hidden;height:min(60vh,520px);position:relative;border:1px solid var(--border)}
 .mag-stage .cell{position:absolute;cursor:pointer}
-.mag-stage .sample{position:absolute;left:0;right:0;bottom:0;padding:14px 18px;pointer-events:none;font-size:18px;font-weight:600}
+.mag-stage .sample{position:absolute;left:0;right:0;bottom:4%;padding:14px 18px;pointer-events:none;font-size:18px;font-weight:600}
+.mag-stage .cell.diag svg{display:block}
+.mag-stage .sample small.on-dark{text-shadow:0 0 3px rgba(0,0,0,.55)}
+.mag-stage .sample small.on-light{text-shadow:0 0 3px rgba(255,255,255,.6)}
+/* many-colour palettes can put both dark and light cells under the line; then neither text colour reads everywhere, so a stronger halo of the opposite colour takes over */
+.mag-stage .sample small.on-dark.on-mixed{text-shadow:0 0 1px #000,0 0 3px #000,0 0 5px rgba(0,0,0,.9)}
+.mag-stage .sample small.on-light.on-mixed{text-shadow:0 0 1px #fff,0 0 3px #fff,0 0 5px rgba(255,255,255,.9)}
 .mag-stage .sample .light{color:#fff}
 .mag-stage .sample .dark{color:#111;margin-left:12px}
 .mag-stage .sample small{display:block;opacity:.8;font-weight:400;font-size:13px;margin-top:2px}

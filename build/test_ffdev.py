@@ -20,7 +20,7 @@ URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
 OUT = os.path.join(ROOT, 'shots', 'ffdev'); os.makedirs(OUT, exist_ok=True)
 FFDEV_BIN = os.environ.get('FFDEV_BIN', 'firefox'); GECKODRIVER = os.environ.get('GECKODRIVER', 'geckodriver')
 PALS = {2: ['#2f6ea5', '#f2c14e'], 3: ['#1b263b', '#e0e1dd', '#e63946'], 4: ['#F5E1D5', '#DCF0E4', '#F1E2F3', '#7B2CBF'], 5: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51']}
-SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash']
+SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product']
 fails = []
 def check(c, m):
     print(('ok   ' if c else 'FAIL ') + m)
@@ -55,7 +55,7 @@ first = js("return collection().items.findIndex(p=>p.colors.length>=4)")
 btns = drv.find_elements(By.CSS_SELECTOR, '.pal')[first].find_elements(By.XPATH, ".//button[contains(.,'Preview')]")
 btns[0].click(); time.sleep(0.3)
 check(len(drv.find_elements(By.CSS_SELECTOR, '.pv-box')) == 1, 'preview dialog opens')
-check(len(drv.find_elements(By.CSS_SELECTOR, '.pv-tabs button')) == 7, 'seven scene tabs incl. Text')
+check(len(drv.find_elements(By.CSS_SELECTOR, '.pv-tabs button')) == 8, 'eight scene tabs incl. Products and Text')
 def tab(s): drv.find_element(By.CSS_SELECTOR, f'.pv-tabs button[data-scene="{s}"]').click(); time.sleep(0.15)
 def shuffle(): drv.find_element(By.CSS_SELECTOR, '#pvShuffle').click(); time.sleep(0.05)
 def base(b): drv.find_element(By.CSS_SELECTOR, f'.pv-tools .seg button[data-base="{b}"]').click(); time.sleep(0.05)

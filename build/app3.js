@@ -3,10 +3,10 @@
    All scenes are original inline SVG drawn here; the photo scene is a canvas.
    ===================================================================== */
 
-const PV_SCENES=[['web','Website'],['poster','Poster'],['room','Interior'],['outfit','Outfit'],['dash','Dashboard'],['text','Text'],['photo','Your photo']];
+const PV_SCENES=[['web','Website'],['poster','Poster'],['room','Interior'],['outfit','Outfit'],['dash','Dashboard'],['product','Products'],['text','Text'],['photo','Your photo']];
 const PV_EFFECTS=[['gradient','Gradient map'],['poster','Posterize'],['duo','Duotone']];
 let pv={idx:0,scene:0,shuffle:0,base:null,effect:'gradient',duoA:0,duoB:1,intensity:1,src:null,fullSrc:null,full:null,srcName:'sample',busy:false,raf:0,
-  precise:false,exact:{web:true,poster:true,room:true,outfit:true,dash:true,text:true},font:'system',editText:false,txt:null};
+  precise:false,exact:{web:true,poster:true,room:true,outfit:true,dash:true,product:true,text:true},font:'system',editText:false,txt:null};
 
 /* ---------- colour helpers ---------- */
 function pvShift(hex,dL,cMul){const[l,c,hh]=hexToOklch(hex);return oklchToHex(clamp(l+dL,0,1),c*(cMul===undefined?1:cMul),hh);}
@@ -121,6 +121,66 @@ function pvExactRoles(colors,shuffle,base){
 /* ---------- scenes (original SVG) ---------- */
 const PV_F='font-family="system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"';
 function pvSvg(inner){return`<svg viewBox="0 0 800 500" width="100%" height="100%" ${PV_F} role="img">${inner}</svg>`;}
+/* ---------- Products scene: four flat products on a 2 × 2 grid of cards ----------
+   One drawing routine shared by the normal layout and the exact-count layouts; only the colour map differs, so the
+   geometry is identical in every mode. C = {bg, card, stroke, label, hp, tum, watch, pad} (see pvProductMap). */
+const PV_PRODUCT_CARDS=[[16,16,'HEADPHONES'],[408,16,'TUMBLER'],[16,258,'SMARTWATCH'],[408,258,'CONTROLLER']];
+function pvProductSvg(C){
+  const card=(x,y)=>`<rect x="${x}" y="${y}" width="376" height="226" rx="16" fill="${C.card||'none'}"${C.stroke?` stroke="${C.stroke}" stroke-width="2"`:''}/>`;
+  const label=(x,y,t)=>`<text x="${x+18}" y="${y+30}" font-size="12" font-weight="800" letter-spacing="2" fill="${C.label}">${t}</text>`;
+  const headphones=(cx,cy)=>{const c=C.hp,arc=`M${cx-84} ${cy+22} C${cx-84} ${cy-96} ${cx+84} ${cy-96} ${cx+84} ${cy+22}`;
+    return`<path d="${arc}" fill="none" stroke="${c.band}" stroke-width="18" stroke-linecap="round"/><path d="${arc}" fill="none" stroke="${c.yoke}" stroke-width="5" stroke-linecap="round"/>
+<rect x="${cx-94}" y="${cy+4}" width="20" height="30" rx="6" fill="${c.yoke}"/><rect x="${cx+74}" y="${cy+4}" width="20" height="30" rx="6" fill="${c.yoke}"/>
+<ellipse cx="${cx-84}" cy="${cy+44}" rx="40" ry="46" fill="${c.cup}"/><ellipse cx="${cx+84}" cy="${cy+44}" rx="40" ry="46" fill="${c.cup}"/>
+<ellipse cx="${cx-84}" cy="${cy+44}" rx="26" ry="32" fill="${c.pad}"/><ellipse cx="${cx+84}" cy="${cy+44}" rx="26" ry="32" fill="${c.pad}"/>`;};
+  const tumbler=(cx,cy)=>{const c=C.tum;
+    return`<path d="M${cx-46} ${cy-56} h92 v124 a16 16 0 0 1 -16 16 h-60 a16 16 0 0 1 -16 -16 z" fill="${c.body}"/>
+<rect x="${cx-52}" y="${cy-84}" width="104" height="32" rx="9" fill="${c.lid}"/><rect x="${cx-22}" y="${cy-100}" width="44" height="20" rx="7" fill="${c.lid}"/>
+<rect x="${cx-46}" y="${cy+2}" width="92" height="38" fill="${c.band}"/>
+<path d="M${cx-46} ${cy+62} h92 v6 a16 16 0 0 1 -16 16 h-60 a16 16 0 0 1 -16 -16 z" fill="${c.base}"/>`;};
+  const watch=(cx,cy)=>{const c=C.watch;
+    return`<rect x="${cx-30}" y="${cy-98}" width="60" height="196" rx="16" fill="${c.band}"/>
+<rect x="${cx-54}" y="${cy-62}" width="108" height="124" rx="26" fill="${c.case}"/><rect x="${cx-42}" y="${cy-50}" width="84" height="100" rx="18" fill="${c.screen}"/>
+<rect x="${cx+54}" y="${cy-26}" width="10" height="26" rx="3" fill="${c.crown}"/><rect x="${cx+54}" y="${cy+8}" width="8" height="18" rx="3" fill="${c.crown}"/>
+<circle cx="${cx}" cy="${cy-8}" r="24" fill="none" stroke="${c.ring}" stroke-width="7" stroke-dasharray="112 40" transform="rotate(-90 ${cx} ${cy-8})"/>
+<text x="${cx}" y="${cy+36}" text-anchor="middle" font-size="14" font-weight="700" fill="${c.time}">10:09</text>`;};
+  const controller=(cx,cy)=>{const c=C.pad;
+    return`<path d="M${cx-96} ${cy-44} h192 a34 34 0 0 1 34 34 l16 72 a30 30 0 0 1 -56 14 l-28 -20 h-124 l-28 20 a30 30 0 0 1 -56 -14 l16 -72 a34 34 0 0 1 34 -34 z" fill="${c.body}"/>
+<circle cx="${cx-62}" cy="${cy-6}" r="19" fill="${c.stick}"/><circle cx="${cx-62}" cy="${cy-6}" r="11" fill="${c.stickTop}"/>
+<rect x="${cx-34}" y="${cy+6}" width="16" height="40" rx="3" fill="${c.dpad}"/><rect x="${cx-46}" y="${cy+18}" width="40" height="16" rx="3" fill="${c.dpad}"/>
+<circle cx="${cx+62}" cy="${cy-24}" r="8" fill="${c.btnA}"/><circle cx="${cx+62}" cy="${cy+12}" r="8" fill="${c.btnB}"/><circle cx="${cx+44}" cy="${cy-6}" r="8" fill="${c.btnB}"/><circle cx="${cx+80}" cy="${cy-6}" r="8" fill="${c.btnA}"/>
+<circle cx="${cx+26}" cy="${cy+26}" r="19" fill="${c.stick}"/><circle cx="${cx+26}" cy="${cy+26}" r="11" fill="${c.stickTop}"/>
+<rect x="${cx-14}" y="${cy-14}" width="10" height="6" rx="3" fill="${c.dpad}"/><rect x="${cx+4}" y="${cy-14}" width="10" height="6" rx="3" fill="${c.dpad}"/>`;};
+  const draw=[headphones,tumbler,watch,controller];
+  return pvSvg(`<rect width="800" height="500" fill="${C.bg}"/>`+PV_PRODUCT_CARDS.map(([x,y,t],i)=>card(x,y)+label(x,y,t)+draw[i](x+188,y+(i===0?118:i===3?110:122))).join(''));
+}
+/* Colour map for the normal (and Precise-with-derived-roles) layout */
+function pvProductMap(R){
+  // large bodies take the first of these colours that stands out from the card (derived secondary/tertiary can sit close to it)
+  const vis=(...c)=>c.find(x=>contrast(x,R.surface)>=1.8)||c.sort((a,b)=>contrast(b,R.surface)-contrast(a,R.surface))[0];
+  const body=vis(R.tertiary,R.secondary,R.primary,R.accent),band=vis(R.secondary,R.tertiary,R.accent,R.primary);
+  return{bg:R.bg,card:R.surface,stroke:null,label:R.exact.length?pvOnExact(R.surface,R,false):contrast(R.muted,R.surface)>=4.5?R.muted:R.text,
+    hp:{cup:R.primary,band:R.text,yoke:R.accent,pad:R.surface},
+    tum:{body:R.accent,lid:R.text,band:R.primary,base:band},
+    watch:{case:R.text,band,crown:R.accent,screen:R.bg,ring:R.primary,time:R.text},
+    pad:{body,dpad:R.text,btnA:R.accent,btnB:R.primary,stick:R.text,stickTop:band===body?R.primary:band}};
+}
+/* Exact-count colour maps: 2 = background + text; 3 = + primary; 4 = + surface (cards); 5 = + accent */
+const PV_PRODUCT_EXACT={
+  2(X){const{bg,text:T}=X;return{bg,card:null,stroke:T,label:T,
+    hp:{cup:T,band:T,yoke:bg,pad:bg},tum:{body:T,lid:T,band:bg,base:T},
+    watch:{case:T,band:T,crown:T,screen:bg,ring:T,time:T},pad:{body:T,dpad:bg,btnA:bg,btnB:bg,stick:bg,stickTop:T}};},
+  3(X){const{bg,text:T,primary:P}=X;return{bg,card:null,stroke:T,label:T,
+    hp:{cup:P,band:T,yoke:P,pad:bg},tum:{body:P,lid:T,band:T,base:T},
+    watch:{case:T,band:P,crown:T,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:T,btnB:T,stick:T,stickTop:P}};},
+  4(X){const{bg,text:T,primary:P,surface:S}=X;return{bg,card:S,stroke:null,label:X.on(S),
+    hp:{cup:P,band:T,yoke:bg,pad:S},tum:{body:P,lid:T,band:bg,base:T},
+    watch:{case:T,band:P,crown:bg,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:bg,btnB:T,stick:T,stickTop:S}};},
+  5(X){const{bg,text:T,primary:P,surface:S,accent:A}=X;return{bg,card:S,stroke:null,label:X.on(S),
+    hp:{cup:P,band:T,yoke:A,pad:S},tum:{body:A,lid:T,band:P,base:bg},
+    watch:{case:T,band:P,crown:A,screen:bg,ring:A,time:T},pad:{body:P,dpad:T,btnA:A,btnB:bg,stick:T,stickTop:A}};}
+};
+
 const PV_SCENE_FN={
   web(R){
     const card=(x,c,t)=>`<rect x="${x}" y="362" width="208" height="112" rx="14" fill="${R.surface}"/><circle cx="${x+30}" cy="392" r="15" fill="${c}"/><text x="${x+56}" y="397" font-size="14" font-weight="700" fill="${R.text}">${t}</text><rect x="${x+20}" y="418" width="150" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/><rect x="${x+20}" y="433" width="120" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/><rect x="${x+20}" y="448" width="135" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/>`;
@@ -220,7 +280,8 @@ ${kpi(200,'VISITORS','48.2k','+12%',R.accent)}${kpi(390,'REVENUE','$96.4k','+8%'
 <circle cx="616" cy="358" r="5" fill="${R.primary}"/><text x="626" y="362" font-size="11" fill="${R.muted}">This year</text><circle cx="694" cy="358" r="5" fill="${R.accent}"/><text x="704" y="362" font-size="11" fill="${R.muted}">Last year</text>
 <polygon points="228,452 ${line} 745,452" fill="${R.primary}" opacity=".16"/><polyline points="${line}" fill="none" stroke="${R.primary}" stroke-width="3" stroke-linejoin="round"/><polyline points="${pts2}" fill="none" stroke="${R.accent}" stroke-width="2.5" stroke-dasharray="6 5"/>
 ${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${R.surface}" stroke="${R.primary}" stroke-width="2.5"/>`).join('')}`);
-  }
+  },
+  product(R){return pvProductSvg(pvProductMap(R));}
 };
 
 /* ---------- exact-count scenes (Precise mode + "Use exact number of colours") ----------
@@ -463,7 +524,8 @@ ${kpi(200,'VISITORS','48.2k','+12%',A,onA)}${kpi(390,'REVENUE','$96.4k','+8%',P,
 <rect x="200" y="338" width="552" height="138" rx="12" fill="${S}"/><text x="216" y="362" font-size="13" font-weight="700" fill="${oS}">Growth</text>
 <circle cx="616" cy="358" r="5" fill="${P}"/><text x="626" y="362" font-size="11" fill="${oS}">This year</text><circle cx="694" cy="358" r="5" fill="${A}"/><text x="704" y="362" font-size="11" fill="${oS}">Last year</text>
 <polyline points="${pts}" fill="none" stroke="${P}" stroke-width="3" stroke-linejoin="round"/><polyline points="${pts2}" fill="none" stroke="${A}" stroke-width="2.5" stroke-dasharray="6 5"/>`);}
-  }
+  },
+  product:{2:X=>pvProductSvg(PV_PRODUCT_EXACT[2](X)),3:X=>pvProductSvg(PV_PRODUCT_EXACT[3](X)),4:X=>pvProductSvg(PV_PRODUCT_EXACT[4](X)),5:X=>pvProductSvg(PV_PRODUCT_EXACT[5](X))}
 };
 /* Draw an exact-count scene; palettes with more than five colours get the five-colour layout plus a strip of all colours */
 function pvExactScene(sid,X){
