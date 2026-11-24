@@ -30,7 +30,7 @@ Lightdream's own [archived troubleshooting page, captured January 21, 2001](http
 
 It even describes the problem of Windows 95 assigning `.sta` files to another application, and instructs users to drag `Ppicker.sta` onto `OMOPlay.exe` or repair the file association. The same page documents a Macintosh version using Oracle Media Objects Player.
 
-There is also a [screenshot](https://graphics.stanford.edu/courses/cs448b-02-spring/04cdrom.pdf#page=47) in Maureen Stone's **SIGGRAPH 2001** course notes showing the window title **`PPICKER.STA`**, alongside the Palette Picker name and `www.lightdream.com`. That independently confirms that the surviving references concern the program.
+There is also a [screenshot](https://graphics.stanford.edu/courses/cs448b-02-spring/04cdrom.pdf#page=78) in Maureen Stone's **SIGGRAPH 2001** course notes showing the window title **`PPICKER.STA`**, alongside the Palette Picker name and `www.lightdream.com`. That independently confirms that the surviving references concern the program.
 
 ## When was it last available for purchase?
 
