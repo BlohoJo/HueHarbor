@@ -6,7 +6,7 @@
 const PV_SCENES=[['web','Website'],['poster','Poster'],['room','Interior'],['outfit','Outfit'],['dash','Dashboard'],['product','Products'],['text','Text'],['photo','Your photo']];
 const PV_EFFECTS=[['gradient','Gradient map'],['poster','Posterize'],['duo','Duotone']];
 let pv={idx:0,scene:0,shuffle:0,base:null,effect:'gradient',duoA:0,duoB:1,intensity:1,src:null,fullSrc:null,full:null,srcName:'sample',busy:false,raf:0,
-  precise:false,exact:{web:true,poster:true,room:true,outfit:true,dash:true,product:true,text:true},font:'system',editText:false,txt:null};
+  precise:false,exact:{web:true,poster:true,room:true,outfit:true,dash:true,product:true,text:true},productSet:0,font:'system',editText:false,txt:null};
 
 /* ---------- colour helpers ---------- */
 function pvShift(hex,dL,cMul){const[l,c,hh]=hexToOklch(hex);return oklchToHex(clamp(l+dL,0,1),c*(cMul===undefined?1:cMul),hh);}
@@ -124,8 +124,11 @@ function pvSvg(inner){return`<svg viewBox="0 0 800 500" width="100%" height="100
 /* ---------- Products scene: four flat products on a 2 × 2 grid of cards ----------
    One drawing routine shared by the normal layout and the exact-count layouts; only the colour map differs, so the
    geometry is identical in every mode. C = {bg, card, stroke, label, hp, tum, watch, pad} (see pvProductMap). */
-const PV_PRODUCT_CARDS=[[16,16,'HEADPHONES'],[408,16,'TUMBLER'],[16,258,'SMARTWATCH'],[408,258,'CONTROLLER']];
+const PV_PRODUCT_SETS=[['tech','Tech'],['everyday','Everyday']];
+const PV_PRODUCT_CARDS=[[[16,16,'HEADPHONES'],[408,16,'TUMBLER'],[16,258,'SMARTWATCH'],[408,258,'CONTROLLER']],
+  [[16,16,'SNEAKER'],[408,16,'BACKPACK'],[16,258,'PHONE CASE'],[408,258,'COFFEE MUG']]];
 function pvProductSvg(C){
+  const set=PV_PRODUCT_SETS[pv.productSet]?pv.productSet:0;
   const card=(x,y)=>`<rect x="${x}" y="${y}" width="376" height="226" rx="16" fill="${C.card||'none'}"${C.stroke?` stroke="${C.stroke}" stroke-width="2"`:''}/>`;
   const label=(x,y,t)=>`<text x="${x+18}" y="${y+30}" font-size="12" font-weight="800" letter-spacing="2" fill="${C.label}">${t}</text>`;
   const headphones=(cx,cy)=>{const c=C.hp,arc=`M${cx-84} ${cy+22} C${cx-84} ${cy-96} ${cx+84} ${cy-96} ${cx+84} ${cy+22}`;
@@ -151,8 +154,36 @@ function pvProductSvg(C){
 <circle cx="${cx+62}" cy="${cy-24}" r="8" fill="${c.btnA}"/><circle cx="${cx+62}" cy="${cy+12}" r="8" fill="${c.btnB}"/><circle cx="${cx+44}" cy="${cy-6}" r="8" fill="${c.btnB}"/><circle cx="${cx+80}" cy="${cy-6}" r="8" fill="${c.btnA}"/>
 <circle cx="${cx+26}" cy="${cy+26}" r="19" fill="${c.stick}"/><circle cx="${cx+26}" cy="${cy+26}" r="11" fill="${c.stickTop}"/>
 <rect x="${cx-14}" y="${cy-14}" width="10" height="6" rx="3" fill="${c.dpad}"/><rect x="${cx+4}" y="${cy-14}" width="10" height="6" rx="3" fill="${c.dpad}"/>`;};
-  const draw=[headphones,tumbler,watch,controller];
-  return pvSvg(`<rect width="800" height="500" fill="${C.bg}"/>`+PV_PRODUCT_CARDS.map(([x,y,t],i)=>card(x,y)+label(x,y,t)+draw[i](x+188,y+(i===0?118:i===3?110:122))).join(''));
+  /* second set: everyday objects (original shapes, no logos) */
+  const sneaker=(cx,cy)=>{const c=C.shoe;
+    return`<path d="M${cx-100} ${cy+34} h200 a12 12 0 0 1 0 24 h-188 a12 12 0 0 1 -12 -12 z" fill="${c.sole}"/>
+<path d="M${cx-100} ${cy+22} h196 a10 10 0 0 1 4 12 h-200 z" fill="${c.mid}"/>
+<path d="M${cx-100} ${cy+22} c0 -26 6 -50 24 -62 c20 -14 44 -10 62 2 c22 14 40 34 70 40 c18 4 34 10 40 20 z" fill="${c.upper}"/>
+<path d="M${cx-18} ${cy-28} c18 14 36 30 66 36 c10 2 20 5 26 9 l-30 5 c-30 -6 -50 -22 -70 -38 z" fill="${c.stripe}"/>
+<path d="M${cx-62} ${cy-22} l28 14 M${cx-56} ${cy-8} l26 12 M${cx-50} ${cy+6} l24 10" stroke="${c.lace}" stroke-width="5" stroke-linecap="round" fill="none"/>
+<path d="M${cx-82} ${cy+22} v-24 a18 18 0 0 1 18 -18" stroke="${c.lace}" stroke-width="4" fill="none" stroke-linecap="round"/>`;};
+  const backpack=(cx,cy)=>{const c=C.bag;
+    return`<rect x="${cx-70}" y="${cy-52}" width="28" height="140" rx="10" fill="${c.strap}"/><rect x="${cx+42}" y="${cy-52}" width="28" height="140" rx="10" fill="${c.strap}"/>
+<path d="M${cx-24} ${cy-96} a24 24 0 0 1 48 0" stroke="${c.strap}" stroke-width="10" fill="none" stroke-linecap="round"/>
+<rect x="${cx-62}" y="${cy-84}" width="124" height="172" rx="30" fill="${c.body}"/>
+<rect x="${cx-46}" y="${cy+8}" width="92" height="66" rx="16" fill="${c.pocket}"/>
+<path d="M${cx-46} ${cy+28} h92" stroke="${c.zip}" stroke-width="4"/><circle cx="${cx+22}" cy="${cy+28}" r="5" fill="${c.zip}"/>
+<path d="M${cx-40} ${cy-42} h80" stroke="${c.zip}" stroke-width="4" stroke-linecap="round"/><circle cx="${cx-10}" cy="${cy-42}" r="5" fill="${c.zip}"/>`;};
+  const phone=(cx,cy)=>{const c=C.phone;
+    return`<rect x="${cx-54}" y="${cy-102}" width="108" height="204" rx="22" fill="${c.case}"/>
+<rect x="${cx+54}" y="${cy-56}" width="6" height="22" rx="2" fill="${c.button}"/><rect x="${cx+54}" y="${cy-26}" width="6" height="34" rx="2" fill="${c.button}"/>
+<rect x="${cx-42}" y="${cy-90}" width="50" height="60" rx="14" fill="${c.bump}"/>
+<circle cx="${cx-27}" cy="${cy-74}" r="8" fill="${c.lens}"/><circle cx="${cx-7}" cy="${cy-74}" r="8" fill="${c.lens}"/><circle cx="${cx-27}" cy="${cy-48}" r="8" fill="${c.lens}"/><circle cx="${cx-7}" cy="${cy-48}" r="4" fill="${c.button}"/>
+<path d="M${cx-30} ${cy+50} h60" stroke="${c.button}" stroke-width="4" stroke-linecap="round"/>`;};
+  const mug=(cx,cy)=>{const c=C.mug;
+    return`<ellipse cx="${cx-6}" cy="${cy+78}" rx="96" ry="14" fill="${c.saucer}"/>
+<path d="M${cx+44} ${cy-14} h18 a30 30 0 0 1 0 60 h-18" stroke="${c.handle}" stroke-width="14" fill="none" stroke-linecap="round"/>
+<path d="M${cx-62} ${cy-40} h112 v88 a22 22 0 0 1 -22 22 h-68 a22 22 0 0 1 -22 -22 z" fill="${c.body}"/>
+<rect x="${cx-62}" y="${cy-40}" width="112" height="18" fill="${c.band}"/>
+<path d="M${cx-32} ${cy-56} c-8 -12 8 -20 0 -34 M${cx-6} ${cy-56} c-8 -12 8 -20 0 -34 M${cx+20} ${cy-56} c-8 -12 8 -20 0 -34" stroke="${c.steam}" stroke-width="4" fill="none" stroke-linecap="round"/>`;};
+  const draw=set?[sneaker,backpack,phone,mug]:[headphones,tumbler,watch,controller];
+  const dy=set?[116,118,118,112]:[118,122,122,110];
+  return pvSvg(`<rect width="800" height="500" fill="${C.bg}"/>`+PV_PRODUCT_CARDS[set].map(([x,y,t],i)=>card(x,y)+label(x,y,t)+draw[i](x+188,y+dy[i])).join(''));
 }
 /* Colour map for the normal (and Precise-with-derived-roles) layout */
 function pvProductMap(R){
@@ -163,22 +194,34 @@ function pvProductMap(R){
     hp:{cup:R.primary,band:R.text,yoke:R.accent,pad:R.surface},
     tum:{body:R.accent,lid:R.text,band:R.primary,base:band},
     watch:{case:R.text,band,crown:R.accent,screen:R.bg,ring:R.primary,time:R.text},
-    pad:{body,dpad:R.text,btnA:R.accent,btnB:R.primary,stick:R.text,stickTop:band===body?R.primary:band}};
+    pad:{body,dpad:R.text,btnA:R.accent,btnB:R.primary,stick:R.text,stickTop:band===body?R.primary:band},
+    shoe:{upper:R.primary,sole:R.text,mid:R.surface,lace:R.surface,stripe:R.accent},
+    bag:{body:body,pocket:R.accent,strap:R.text,zip:R.text},
+    phone:{case:R.accent,bump:R.text,lens:R.surface,button:R.primary},
+    mug:{body:R.primary,handle:R.text,band:R.accent,steam:R.text,saucer:band}};
 }
 /* Exact-count colour maps: 2 = background + text; 3 = + primary; 4 = + surface (cards); 5 = + accent */
 const PV_PRODUCT_EXACT={
   2(X){const{bg,text:T}=X;return{bg,card:null,stroke:T,label:T,
     hp:{cup:T,band:T,yoke:bg,pad:bg},tum:{body:T,lid:T,band:bg,base:T},
-    watch:{case:T,band:T,crown:T,screen:bg,ring:T,time:T},pad:{body:T,dpad:bg,btnA:bg,btnB:bg,stick:bg,stickTop:T}};},
+    watch:{case:T,band:T,crown:T,screen:bg,ring:T,time:T},pad:{body:T,dpad:bg,btnA:bg,btnB:bg,stick:bg,stickTop:T},
+    shoe:{upper:T,sole:T,mid:bg,lace:bg,stripe:bg},bag:{body:T,pocket:bg,strap:T,zip:T},
+    phone:{case:T,bump:bg,lens:T,button:bg},mug:{body:T,handle:T,band:bg,steam:T,saucer:T}};},
   3(X){const{bg,text:T,primary:P}=X;return{bg,card:null,stroke:T,label:T,
     hp:{cup:P,band:T,yoke:P,pad:bg},tum:{body:P,lid:T,band:T,base:T},
-    watch:{case:T,band:P,crown:T,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:T,btnB:T,stick:T,stickTop:P}};},
+    watch:{case:T,band:P,crown:T,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:T,btnB:T,stick:T,stickTop:P},
+    shoe:{upper:P,sole:T,mid:bg,lace:T,stripe:T},bag:{body:P,pocket:T,strap:T,zip:bg},
+    phone:{case:P,bump:T,lens:bg,button:T},mug:{body:P,handle:T,band:T,steam:T,saucer:T}};},
   4(X){const{bg,text:T,primary:P,surface:S}=X;return{bg,card:S,stroke:null,label:X.on(S),
     hp:{cup:P,band:T,yoke:bg,pad:S},tum:{body:P,lid:T,band:bg,base:T},
-    watch:{case:T,band:P,crown:bg,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:bg,btnB:T,stick:T,stickTop:S}};},
+    watch:{case:T,band:P,crown:bg,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:bg,btnB:T,stick:T,stickTop:S},
+    shoe:{upper:P,sole:T,mid:bg,lace:bg,stripe:T},bag:{body:P,pocket:T,strap:T,zip:S},
+    phone:{case:P,bump:T,lens:S,button:bg},mug:{body:P,handle:T,band:T,steam:T,saucer:bg}};},
   5(X){const{bg,text:T,primary:P,surface:S,accent:A}=X;return{bg,card:S,stroke:null,label:X.on(S),
     hp:{cup:P,band:T,yoke:A,pad:S},tum:{body:A,lid:T,band:P,base:bg},
-    watch:{case:T,band:P,crown:A,screen:bg,ring:A,time:T},pad:{body:P,dpad:T,btnA:A,btnB:bg,stick:T,stickTop:A}};}
+    watch:{case:T,band:P,crown:A,screen:bg,ring:A,time:T},pad:{body:P,dpad:T,btnA:A,btnB:bg,stick:T,stickTop:A},
+    shoe:{upper:P,sole:T,mid:bg,lace:S,stripe:A},bag:{body:P,pocket:A,strap:T,zip:S},
+    phone:{case:A,bump:T,lens:S,button:P},mug:{body:P,handle:T,band:A,steam:T,saucer:bg}};}
 };
 
 const PV_SCENE_FN={
@@ -765,6 +808,7 @@ function renderPreview(){
       h('span',{style:'flex:1'}),
       check('pvPrecise','Precise',pv.precise,'Show every palette colour with its exact value',v=>{pv.precise=v;}),
       pv.precise?check('pvExact','Use exact number of colours',!!pv.exact[sid],`A layout made for ${p.colors.length}-colour palettes in the ${slabel} preview; off = the standard layout with the missing roles derived from the palette`,v=>{pv.exact[sid]=v;}):null,
+      sid==='product'?h('div',{class:'seg pv-set',role:'group','aria-label':'Product set'},...PV_PRODUCT_SETS.map(([id,l],i)=>h('button',{type:'button','data-set':id,'aria-pressed':String(pv.productSet===i),title:i?'Sneaker, backpack, phone case and coffee mug':'Headphones, tumbler, smartwatch and controller',onclick:()=>{pv.productSet=i;renderPreview();}},l))):null,
       h('button',{type:'button',class:'btn small',id:'pvShuffle',title:pv.precise?'Cycle which palette colour takes which role':'Cycle through role assignments',onclick:()=>{pv.shuffle++;renderPreview();}},'⇄ Shuffle roles'),
       h('div',{class:'seg',role:'group','aria-label':'Base'},h('button',{type:'button','data-base':'light','aria-pressed':String(!R.dark),onclick:()=>{pv.base='light';renderPreview();}},'Light'),h('button',{type:'button','data-base':'dark','aria-pressed':String(!!R.dark),onclick:()=>{pv.base='dark';renderPreview();}},'Dark')));
     if(sid==='text'){

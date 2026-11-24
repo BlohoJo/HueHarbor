@@ -158,3 +158,38 @@ Confirmed: the halo class is added only when the best
 worst-case ratio is below 3 : 1 and applies to both text colours; the subtle
 shadow remains otherwise; the overlay stays inside the stage; the four
 products and their labels read in every mode. Verdict: PASS.
+
+## Round 6 — second Products set ("Everyday") and the Tech / Everyday switch
+
+Scope: the alternate 2 × 2 set (sneaker, backpack, phone case, coffee mug) in
+`pvProductSvg` / `pvProductMap` / `PV_PRODUCT_EXACT`, the `.pv-set` segmented
+control rendered only on the Products tab, the in-memory `pv.productSet`
+selection, the new checks in `test_preview.py` and `test_ffdev.py`, README §7
+and `docs/screenshots/pv_products_everyday.png`.
+
+Two independent reviewer passes (code review + switch behaviour; visual /
+contrast probe) were given README.md and the findings document and an
+adversarial brief. They re-ran `test_preview.py` in Chromium and Firefox
+(exit 0 both), reviewed every hunk of the diff, and probed the Everyday set for
+2 / 3 / 4 / 5 / 6 / 8-colour palettes × normal / Precise / exact × Light / Dark
+× shuffle steps 0–2 (229 screenshots, contact sheet inspected), measuring
+label contrast (lowest 4.90 : 1 normal on the 8-colour palette, 7.39 : 1 in
+Precise), confirming every exact hex in scene and chips, no part filled with
+its card colour, nothing drawn outside its card, and the strip present for 6+
+colours. Switch: two buttons with correct `aria-pressed`, absent on the seven
+other tabs, selection kept across Prev / Next, tab changes, Shuffle,
+Light / Dark, Precise / exact; nothing written to localStorage (only
+`hueharbor.settings.v1` present); an out-of-range `pv.productSet` falls back
+to Tech.
+
+Findings: no defects. One observation from the layout probe: at a 900 px wide
+viewport the toolbar wraps so that Shuffle and Light / Dark move to a second
+row below the Tech / Everyday control. Checked against the Dashboard tab at the
+same width: the toolbar already wrapped there before this change
+(`.pv-tools` is `flex-wrap: wrap`), nothing overlaps and every control stays
+usable at 900 px and 700 px, so this is existing behaviour, not a regression.
+
+Full run after the review: all 7 suites in Chromium and Firefox exit 0
+(`test_preview.py` 434 checks in Chromium, both sets covered), and the stock
+Firefox Developer Edition smoke test passes 414 checks including the Everyday
+hex / label checks and the switch. Verdict: PASS.

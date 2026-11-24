@@ -100,29 +100,61 @@ with sync_playwright() as pw:
         return {scene:p.colors.filter(c=>{c=c.toLowerCase();return !html.includes(c)&&!html.includes(rgb(c));}),
                 chips:p.colors.filter(c=>!chips.includes(c.toLowerCase())||!codes.includes(c.toLowerCase()))};}"""
     # Products: four cards with four products, every exact hex present, labels readable, Shuffle + Light/Dark change it
+    # (both sets: 0 = Tech, 1 = Everyday, chosen with the Tech / Everyday switch in the toolbar)
+    PRODUCT_LABELS = {0: ['HEADPHONES', 'TUMBLER', 'SMARTWATCH', 'CONTROLLER'], 1: ['SNEAKER', 'BACKPACK', 'PHONE CASE', 'COFFEE MUG']}
+    SET_NAMES = ['tech', 'everyday']
     page.click('.pv-tabs button[data-scene="product"]')
-    for n, cols in PALS.items():
-        page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;}", cols)
-        for mode in ('normal', 'precise', 'exact'):
-            page.evaluate(SET_MODE, mode)
-            page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
-            info = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');return {labels:[...s.querySelectorAll('text')].map(t=>t.textContent).filter(t=>/^[A-Z]+$/.test(t)),cards:s.querySelectorAll('rect[width=\"376\"]').length,texts:[...s.querySelectorAll('text')].length};}")
-            check(info['labels'] == ['HEADPHONES', 'TUMBLER', 'SMARTWATCH', 'CONTROLLER'] and info['cards'] == 4, f'Products {mode} {n}: 2x2 cards with four labelled products ({info})')
-            if mode != 'normal':
-                m = page.evaluate(MISSING); check(not m['scene'] and not m['chips'], f'Products {mode} {n}: every exact hex in the scene and chips {m if m["scene"] or m["chips"] else ""}')
-            renders, same_ld = set(), []
-            for k in range(2 * n):
-                page.evaluate("()=>{pv.base='light';renderPreview();}"); a = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML"); renders.add(a)
-                page.evaluate("()=>{pv.base='dark';renderPreview();}"); b = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
-                if a == b: same_ld.append(k)
-                page.click('#pvShuffle')
-            # in the Precise modes an odd palette has a middle colour that is the k-th from both ends, so Light and Dark coincide there (all scenes)
-            ok_ld = not same_ld or (mode != 'normal' and n % 2 == 1 and same_ld == [n // 2, n + n // 2])
-            check(len(renders) > 1 and ok_ld, f'Products {mode} {n}: Shuffle gives {len(renders)} distinct variants over {2*n} steps and Light/Dark differ at every step {same_ld}')
-            # labels must read on their card (>= 3:1 like the other exact layouts; 4.5:1 for the normal layout)
-            low = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');const cards=[...s.querySelectorAll('rect[width=\"376\"]')];const bg=s.querySelector('rect[width=\"800\"]').getAttribute('fill');const toHex=c=>c&&c.startsWith('rgb')?'#'+c.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join(''):c;return [...s.querySelectorAll('text')].filter(t=>/^[A-Z]+$/.test(t.textContent)).map((t,i)=>{const f=cards[i].getAttribute('fill');const under=toHex(f==='none'?bg:f);return [t.textContent,contrast(toHex(t.getAttribute('fill')),under).toFixed(2)];});}")
-            need = 4.5 if mode == 'normal' else 3
-            check(all(float(x[1]) >= need for x in low), f'Products {mode} {n}: card labels reach {need}:1 {low}')
+    for pset, want_labels in PRODUCT_LABELS.items():
+        page.click(f'.pv-set button[data-set="{SET_NAMES[pset]}"]')
+        check(page.evaluate("()=>pv.productSet") == pset, f'Products set {pset}: switch selects it')
+        for n, cols in PALS.items():
+            page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;}", cols)
+            for mode in ('normal', 'precise', 'exact'):
+                page.evaluate(SET_MODE, mode)
+                page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
+                info = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');return {labels:[...s.querySelectorAll('text')].map(t=>t.textContent).filter(t=>/^[A-Z][A-Z ]*$/.test(t)),cards:s.querySelectorAll('rect[width=\"376\"]').length,texts:[...s.querySelectorAll('text')].length};}")
+                check(info['labels'] == want_labels and info['cards'] == 4, f'Products set {pset} {mode} {n}: 2x2 cards with four labelled products ({info})')
+                if mode != 'normal':
+                    m = page.evaluate(MISSING); check(not m['scene'] and not m['chips'], f'Products set {pset} {mode} {n}: every exact hex in the scene and chips {m if m["scene"] or m["chips"] else ""}')
+                renders, same_ld = set(), []
+                for k in range(2 * n):
+                    page.evaluate("()=>{pv.base='light';renderPreview();}"); a = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML"); renders.add(a)
+                    page.evaluate("()=>{pv.base='dark';renderPreview();}"); b = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
+                    if a == b: same_ld.append(k)
+                    page.click('#pvShuffle')
+                # in the Precise modes an odd palette has a middle colour that is the k-th from both ends, so Light and Dark coincide there (all scenes)
+                ok_ld = not same_ld or (mode != 'normal' and n % 2 == 1 and same_ld == [n // 2, n + n // 2])
+                check(len(renders) > 1 and ok_ld, f'Products set {pset} {mode} {n}: Shuffle gives {len(renders)} distinct variants over {2*n} steps and Light/Dark differ at every step {same_ld}')
+                # labels must read on their card (>= 3:1 like the other exact layouts; 4.5:1 for the normal layout)
+                low = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');const cards=[...s.querySelectorAll('rect[width=\"376\"]')];const bg=s.querySelector('rect[width=\"800\"]').getAttribute('fill');const toHex=c=>c&&c.startsWith('rgb')?'#'+c.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join(''):c;return [...s.querySelectorAll('text')].filter(t=>/^[A-Z][A-Z ]*$/.test(t.textContent)).map((t,i)=>{const f=cards[i].getAttribute('fill');const under=toHex(f==='none'?bg:f);return [t.textContent,contrast(toHex(t.getAttribute('fill')),under).toFixed(2)];});}")
+                need = 4.5 if mode == 'normal' else 3
+                check(all(float(x[1]) >= need for x in low), f'Products set {pset} {mode} {n}: card labels reach {need}:1 {low}')
+                # the set switch stays selected and the two sets differ in every mode
+                check(page.evaluate("()=>pv.productSet") == pset, f'Products set {pset} {mode} {n}: set still selected after Shuffle / Light / Dark')
+    # the Tech / Everyday switch: only on the Products tab, two buttons, aria-pressed follows the selection, selection survives Prev/Next and tab changes
+    page.evaluate(SET_MODE, 'normal'); page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
+    seg = page.evaluate("()=>{const g=document.querySelector('.pv-set');return g?{n:g.querySelectorAll('button').length,pressed:[...g.querySelectorAll('button')].map(b=>b.getAttribute('aria-pressed')),labels:[...g.querySelectorAll('button')].map(b=>b.textContent),role:g.getAttribute('role'),aria:g.getAttribute('aria-label')}:null;}")
+    check(seg and seg['n'] == 2 and seg['labels'] == ['Tech', 'Everyday'] and seg['pressed'] == ['false', 'true'] and seg['role'] == 'group' and seg['aria'] == 'Product set', f'Products: set switch is a two-button group with aria-pressed on Everyday ({seg})')
+    before = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
+    page.click('.pv-set button[data-set="tech"]')
+    after = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
+    pressed = page.evaluate("()=>[...document.querySelectorAll('.pv-set button')].map(b=>b.getAttribute('aria-pressed'))")
+    check(before != after and pressed == ['true', 'false'] and page.evaluate("()=>pv.productSet") == 0, f'Products: clicking Tech redraws the scene and moves aria-pressed ({pressed})')
+    page.click('.pv-set button[data-set="everyday"]')
+    for sid in SCENES:
+        if sid == 'product': continue
+        page.click(f'.pv-tabs button[data-scene="{sid}"]')
+        check(page.evaluate("()=>document.querySelector('.pv-set')") is None, f'Products: set switch hidden on the {sid} tab')
+    page.click('.pv-tabs button[data-scene="product"]')
+    check(page.evaluate("()=>pv.productSet===1&&!!document.querySelector('.pv-set button[data-set=\"everyday\"][aria-pressed=\"true\"]')"), 'Products: Everyday still selected after visiting the other tabs')
+    idx0 = page.evaluate("()=>pv.idx")
+    fwd = not page.locator('#pvNext').is_disabled()
+    page.click('#pvNext' if fwd else '#pvPrev'); page.click('#pvPrev' if fwd else '#pvNext')
+    check(page.evaluate("()=>pv.idx") == idx0 and page.evaluate("()=>pv.productSet") == 1 and page.evaluate("()=>[...document.querySelector('.pv-stage svg').querySelectorAll('text')].map(t=>t.textContent).includes('SNEAKER')"), 'Products: Everyday still selected after Next / Prev')
+    page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;pv.base='light';pv.shuffle=0;renderPreview();}", PALS[5])
+    page.screenshot(path=shot('pv_products_everyday.png'))
+    page.evaluate(SET_MODE, 'exact'); page.evaluate("()=>renderPreview()"); page.screenshot(path=shot('pv_products_everyday_exact_5.png'))
+    page.click('.pv-set button[data-set="tech"]')
     page.evaluate(SET_MODE, 'normal'); page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;pv.base='light';pv.shuffle=0;renderPreview();}", PALS[5])
     page.screenshot(path=shot('pv_products.png'))
     page.evaluate(SET_MODE, 'exact'); page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;renderPreview();}", PALS[5]); page.screenshot(path=shot('pv_products_exact_5.png'))
