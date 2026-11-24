@@ -45,7 +45,7 @@ Hue Harbor is an independent, clean-room tribute to a mid-1990s Windows color-ha
 - **Swatch details** — click a color for HEX, RGB, HSL, OKLCH, an estimated CMYK and the nearest classic base color.
 - **One-click copying** — copy a whole palette as HEX, CSS variables or JSON.
 - **Magnify** — see a palette in five layout patterns with sample text.
-- **Preview** — apply a palette to five sample designs (website, poster, interior, outfit, dashboard) or to **your own photo** (gradient map, posterize, duotone) and download the result as a PNG.
+- **Preview** — apply a palette to five sample designs (website, poster, interior, outfit, dashboard), to a **typography sample** with 36 embedded fonts, or to **your own photo** (gradient map, posterize, duotone) and download the result as a PNG. A **Precise** mode shows every palette color with its exact value.
 - **My lists** — up to 30 favorites lists, exported and imported as JSON.
 - **Swatch-file export** — `.ase` (Adobe Swatch Exchange) and `.gpl` (GIMP palette) for single palettes, whole lists, or everything on screen.
 - **Page background control** and a **light / dark theme**.
@@ -57,7 +57,7 @@ Hue Harbor is an independent, clean-room tribute to a mid-1990s Windows color-ha
 
 1. Download **`palette_picker.html`** (use the *Download raw file* button on GitHub, or *Code → Download ZIP* and unzip it).
 2. Double-click the file. It opens in your default web browser.
-3. That's it. There is nothing to install and you do not need an internet connection.
+3. That's it. There is nothing to install and you do not need an internet connection. (The file is about 1.3 MB; most of that is the 36 fonts embedded for the Text preview.)
 
 Your settings and favorites lists are stored by your browser (in its *local storage* for this file), so they are still there the next time you open it — as long as you open the file from the same location with the same browser.
 
@@ -188,9 +188,15 @@ To copy a whole palette, use the **HEX**, **CSS** (custom properties) or **JSON*
 
 ### 7. Preview — sample designs and your photo
 
-**Preview** applies the palette to five original sample designs and to a photo:
+**Preview** applies the palette to five original sample designs, a typography sample and a photo:
 
-- **Website**, **Poster**, **Interior**, **Outfit** and **Dashboard** tabs. Hue Harbor assigns the colors to roles (background, surface, primary, accent, text) automatically: text is chosen for WCAG contrast against its background, and missing roles are derived as lighter or darker versions of the palette colors. Use **⇄ Shuffle roles** to try a different assignment and **Light / Dark** to change the base.
+- **Website**, **Poster**, **Interior**, **Outfit** and **Dashboard** tabs. Hue Harbor assigns the colors to roles (background, surface, primary, accent, text) automatically: text is chosen for WCAG contrast against its background, and missing roles are derived as lighter or darker versions of the palette colors. Use **⇄ Shuffle roles** to try a different assignment and **Light / Dark** to change the base. The role chips under the design show which color plays which role; the swatches in the dialog's header are the palette itself — click one (or focus it and press Enter) to copy that hex.
+- **Text** shows the palette on typography: a display heading, heading, subheading, body text, caption and link on the background and a surface panel. Pick one of 36 embedded fonts (sans-serif & geometric, serif & slab, monospace, script & handwritten, display) from the **Font** menu — they are built into the file, so this works offline — and press **Edit text…** to replace the sample copy with your own (**Reset text** brings the sample back). The fonts are regular-weight Latin subsets (about 780 KB of WOFF2, which grows to roughly 1.05 MB once base64-encoded into the file) under the SIL Open Font License or Apache 2.0; see [FONTS_NOTICE.md](FONTS_NOTICE.md) for each font's designer and license.
+- **Precise** (checkbox under the design) makes every palette color appear with its **exact** value — nothing tinted, shaded or faded — and prints the hex on each role chip. With Precise on, a second checkbox, **Use exact number of colours**, chooses between two ways of doing that (remembered per preview type):
+  - *on* — a layout designed for the palette's own color count (2, 3, 4 or 5 colors; palettes with more get the five-color layout plus a strip of the remaining colors). The Text preview adapts its levels too: 2 colors give one heading on a background of the other, 3 add a subheading, 4 add body text on a surface panel, 5 add a caption and link.
+  - *off* — the standard layout, with the palette colors filling Background, Text, Primary, Accent and Surface (in that order) and only the roles the palette cannot fill derived in keeping with its type or rule (extra hues for hue-based schemes, lightness steps for monochrome ones, variations of the palette's own colors for moods and classic sets). Any palette color that still finds no place is shown in a strip along the bottom.
+
+  **⇄ Shuffle roles** keeps working in Precise mode — it permutes the exact colors between roles — and **Light / Dark** picks the background from the dark or the light end of the palette. Precise mode does not apply to **Your photo**.
 - **Your photo** recolors an image with the palette using one of three effects:
   - **Gradient map** — the palette, ordered from darkest to lightest, replaces the image's tones;
   - **Posterize** — every pixel snaps to the nearest palette color;
@@ -201,6 +207,8 @@ To copy a whole palette, use the **HEX**, **CSS** (custom properties) or **JSON*
 Inside Preview, **‹ Prev** / **Next ›** and the arrow keys move through the palettes of the current view, so you can compare several palettes on the same design.
 
 ![Preview: website scene](docs/screenshots/pv_web.png)
+![Preview: Precise mode with the exact-count layout for a four-color palette](docs/screenshots/pv_precise_exact_4.png)
+![Preview: Text preview with an embedded font](docs/screenshots/pv_text_font.png)
 ![Preview: posterize effect on the sample photo](docs/screenshots/pv_photo_poster.png)
 
 ### 8. My lists (favorites)
@@ -305,7 +313,8 @@ build/
   data.js             recovered color data (152 base colors, 3,400 sets, mood/scheme membership)
   app1.js             color math (RGB/HSL/OKLCH/CMYK) and palette generation
   app2.js             state, persistence, UI, library, lists, exports, background/theme
-  app3.js             Preview: SVG scenes, photo effects, PNG export worker
+  app3.js             Preview: SVG scenes, Precise/exact-count layouts, Text preview, photo effects, PNG export worker
+  fonts/              36 WOFF2 Latin subsets for the Text preview + manifest.json (embedded as base64 by assemble.py)
   assemble.py         concatenates the parts above into palette_picker.html and index.html
   check_site.py       checks index.html == palette_picker.html and that .nojekyll exists
   browsers.py         shared Playwright browser selection for the tests
@@ -313,10 +322,12 @@ build/
   test_export.py      .ase / .gpl file-format checks
   test_bg.py          page-background control
   test_ff_probe.py    Firefox/Chromium behavior probes (pointer, keyboard, CSS, layout)
-  test_preview.py     Preview scenes, photo effects, PNG download
+  test_preview.py     Preview scenes, Precise mode, Text preview and fonts, swatch copy, photo effects, PNG download
   test_perf.py        photo-pipeline benchmark with a 4000×3000 image
+  test_ffdev.py       optional: Preview smoke run in a stock Firefox Developer Edition via geckodriver + Selenium (see its docstring)
 data/                 the recovered color data as CSV/JSON (source of data.js)
-docs/                 screenshots used in this README and review logs
+docs/                 screenshots used in this README and review logs (docs/qc_review_log.md)
+FONTS_NOTICE.md       the embedded fonts: designer, license and the OFL / Apache license texts
 ```
 
 **Build** (Python 3, no dependencies):
@@ -357,6 +368,7 @@ The modals (Help, Magnify, Preview) keep keyboard focus inside while open and re
 - The **numeric color data** — 152 base colors and 3,400 curated color sets, with their mood and scheme memberships — was recovered from the abandoned original. Hue Harbor treats these as facts (lists of color values); the way they are presented, searched and combined here is new work.
 - “Ink numbers” are estimates of the nearest reference in a commercial printing-ink system, included only to help identify colors; the names of color systems and programs mentioned in this document belong to their respective owners.
 - CMYK values are naive conversions and are not color-managed.
+- The 36 fonts embedded for the Text preview are open-source typefaces under the SIL Open Font License 1.1 (Roboto Slab: Apache License 2.0); they keep their own licenses, which are reproduced in [FONTS_NOTICE.md](FONTS_NOTICE.md).
 
 ---
 

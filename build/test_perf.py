@@ -58,7 +58,7 @@ with sync_playwright() as pw:
     page.wait_for_selector('.pal')
     page.evaluate(INSTRUMENT)
     first = page.evaluate("()=>collection().items.findIndex(p=>p.colors.length>=4)")
-    page.evaluate("i=>{pv.effect='gradient';openPreview(i,5);}", first)
+    page.evaluate("i=>{pv.effect='gradient';openPreview(i,PV_SCENES.findIndex(s=>s[0]==='photo'));}", first)
     page.wait_for_selector('.pv-stage canvas')
     # --- load the big photo (gradient effect active) ---
     page.evaluate("()=>{__perf.renders=0;document.querySelector('#pvFile').addEventListener('change',()=>{__perf.tLoad=performance.now();},{capture:true});}")

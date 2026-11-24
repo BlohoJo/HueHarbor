@@ -217,6 +217,32 @@ footer{padding:14px 18px 26px;color:var(--page-muted);font-size:12.5px;text-alig
 .pv-duo{display:inline-flex;gap:4px}
 .pv-dot{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.2);padding:0}
 .pv-dot[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+/* Dialog counters sit on the panel, not the page background, so they use the theme's muted colour (readable in dark mode whatever the page background is) */
+.modal .counter{color:var(--muted)}
+.pv-check{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none}
+.pv-check input{accent-color:var(--accent);width:15px;height:15px;margin:0}
+.pv-role code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:600;color:var(--text);letter-spacing:.02em}
+.pv-swatches{display:inline-flex;gap:4px;vertical-align:middle;margin-left:2px}
+.pv-sw{border:0;background:none;padding:0;width:20px;height:20px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform .12s}
+.pv-sw img{display:block;width:18px;height:18px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.pv-sw:hover{transform:scale(1.15)}
+.pv-sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pv-sw.copied{outline:2px solid var(--accent);outline-offset:2px;transform:scale(1.25)}
+.pv-text{container-type:inline-size;box-sizing:border-box;width:100%;height:100%;padding:5% 7%;overflow:auto;font-family:system-ui,sans-serif;text-align:left;display:flex;flex-direction:column}
+.pv-text-in{margin:auto 0;width:100%}
+.pv-text h1,.pv-text h2,.pv-text h3,.pv-text p{font-size:inherit;margin:0;padding:0}
+.pv-text-panel{box-sizing:border-box;padding:18px 22px;border-radius:12px;margin-top:12px}
+.pv-text-strip{display:flex;flex:none;margin:12px -7% -5%;height:34px}
+.pv-text-strip i{display:block;flex:1}
+.pv-tools-text{margin-top:10px}
+.pv-fontpick{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--muted)}
+.pv-fontpick select{background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-s);padding:6px 10px;font:inherit;font-size:13px;max-width:220px}
+.pv-fontinfo{color:var(--muted);font-size:12px}
+.pv-fields{width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:4px}
+.pv-field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+.pv-field input,.pv-field textarea{width:100%;box-sizing:border-box;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-s);padding:6px 9px;font:inherit;font-size:13px;font-weight:400;resize:vertical}
+.pv-field textarea{grid-column:1/-1}
+.pv-field:has(textarea){grid-column:1/-1}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}}
 </style>
 </head>
