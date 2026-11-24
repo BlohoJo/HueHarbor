@@ -81,3 +81,17 @@ errors or page errors in Chromium and Firefox.
 
 Verdict after fixes: PASS (harness re-run in Firefox and Chromium: no missing
 hexes, no console errors; contact sheets re-inspected).
+
+## Round 3 — stock Firefox Developer Edition 162.0b1 (Linux)
+
+Playwright can only drive its own patched Firefox (157), and its `firefox-beta` target no longer exists, so the
+Developer Edition channel was checked separately: Mozilla's Linux Developer Edition build 162.0b1 (same Gecko as the
+Windows Developer Edition build of the same date) driven by geckodriver 0.36 + Selenium with `build/test_ffdev.py`.
+
+Coverage: dark-mode counter contrast (6.33:1), Light/Dark after 1–10 shuffles in normal/Precise/exact modes,
+every exact palette hex in scene + role chips for 2/3/4/5 colours × Precise and exact-count × all six non-photo
+scenes × light/dark × three shuffles, exact-count Text level counts, all 36 embedded fonts (`document.fonts`
+reports each as loaded and applied), text editing/reset, swatch alt text + clipboard copy, keyboard stepping, Esc.
+
+Result: 313 checks passed, 0 failed, 0 page errors/console errors. Not tested: the Windows binary itself
+(only the Linux build of the same version); screenshots in `shots/ffdev/`.

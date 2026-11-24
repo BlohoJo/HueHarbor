@@ -324,6 +324,7 @@ build/
   test_ff_probe.py    Firefox/Chromium behavior probes (pointer, keyboard, CSS, layout)
   test_preview.py     Preview scenes, Precise mode, Text preview and fonts, swatch copy, photo effects, PNG download
   test_perf.py        photo-pipeline benchmark with a 4000×3000 image
+  test_ffdev.py       optional: Preview smoke run in a stock Firefox Developer Edition via geckodriver + Selenium (see its docstring)
 data/                 the recovered color data as CSV/JSON (source of data.js)
 docs/                 screenshots used in this README and review logs (docs/qc_review_log.md)
 FONTS_NOTICE.md       the embedded fonts: designer, license and the OFL / Apache license texts
