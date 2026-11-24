@@ -7,14 +7,14 @@ The program's run command is:
 
 You create a shortcut for `OMOPLAY.EXE` then add the `PPICKER.STA` as a command line argument, then enter the location of `PPICKER.STA` for `Start in:` (i.e., `"C:\Program Files\PallettePicker\"` in the above example):
 
-![Windows XP shortcut example](docs/original_app/Windows_Shortcut_Example.png)
+![Windows XP shortcut example](Windows_Shortcut_Example.png)
 
  
  
 Note that this **does not run** on Windows 10, regardless of any Compatibility options that you set. You will always get this error:
 
  
-![Windows 10 error](docs/original_app/win_10_error.png)
+![Windows 10 error](win_10_error.png)
 
  
  
