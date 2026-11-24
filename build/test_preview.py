@@ -100,9 +100,9 @@ with sync_playwright() as pw:
         return {scene:p.colors.filter(c=>{c=c.toLowerCase();return !html.includes(c)&&!html.includes(rgb(c));}),
                 chips:p.colors.filter(c=>!chips.includes(c.toLowerCase())||!codes.includes(c.toLowerCase()))};}"""
     # Products: four cards with four products, every exact hex present, labels readable, Shuffle + Light/Dark change it
-    # (both sets: 0 = Tech, 1 = Everyday, chosen with the Tech / Everyday switch in the toolbar)
-    PRODUCT_LABELS = {0: ['HEADPHONES', 'TUMBLER', 'SMARTWATCH', 'CONTROLLER'], 1: ['SNEAKER', 'BACKPACK', 'PHONE CASE', 'COFFEE MUG']}
-    SET_NAMES = ['tech', 'everyday']
+    # (all sets: 0 = Tech, 1 = Everyday, 2 = Home, chosen with the Tech / Everyday / Home switch in the toolbar)
+    PRODUCT_LABELS = {0: ['HEADPHONES', 'TUMBLER', 'SMARTWATCH', 'CONTROLLER'], 1: ['SNEAKER', 'BACKPACK', 'PHONE CASE', 'COFFEE MUG'], 2: ['TABLE LAMP', 'ARMCHAIR', 'VASE', 'THROW PILLOW']}
+    SET_NAMES = ['tech', 'everyday', 'home']
     page.click('.pv-tabs button[data-scene="product"]')
     for pset, want_labels in PRODUCT_LABELS.items():
         page.click(f'.pv-set button[data-set="{SET_NAMES[pset]}"]')
@@ -129,17 +129,25 @@ with sync_playwright() as pw:
                 low = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');const cards=[...s.querySelectorAll('rect[width=\"376\"]')];const bg=s.querySelector('rect[width=\"800\"]').getAttribute('fill');const toHex=c=>c&&c.startsWith('rgb')?'#'+c.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join(''):c;return [...s.querySelectorAll('text')].filter(t=>/^[A-Z][A-Z ]*$/.test(t.textContent)).map((t,i)=>{const f=cards[i].getAttribute('fill');const under=toHex(f==='none'?bg:f);return [t.textContent,contrast(toHex(t.getAttribute('fill')),under).toFixed(2)];});}")
                 need = 4.5 if mode == 'normal' else 3
                 check(all(float(x[1]) >= need for x in low), f'Products set {pset} {mode} {n}: card labels reach {need}:1 {low}')
-                # the set switch stays selected and the two sets differ in every mode
+                # the set switch stays selected in every mode
                 check(page.evaluate("()=>pv.productSet") == pset, f'Products set {pset} {mode} {n}: set still selected after Shuffle / Light / Dark')
-    # the Tech / Everyday switch: only on the Products tab, two buttons, aria-pressed follows the selection, selection survives Prev/Next and tab changes
+    # the Tech / Everyday / Home switch: only on the Products tab, three buttons, aria-pressed follows the selection, selection survives Prev/Next and tab changes
     page.evaluate(SET_MODE, 'normal'); page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
     seg = page.evaluate("()=>{const g=document.querySelector('.pv-set');return g?{n:g.querySelectorAll('button').length,pressed:[...g.querySelectorAll('button')].map(b=>b.getAttribute('aria-pressed')),labels:[...g.querySelectorAll('button')].map(b=>b.textContent),role:g.getAttribute('role'),aria:g.getAttribute('aria-label')}:null;}")
-    check(seg and seg['n'] == 2 and seg['labels'] == ['Tech', 'Everyday'] and seg['pressed'] == ['false', 'true'] and seg['role'] == 'group' and seg['aria'] == 'Product set', f'Products: set switch is a two-button group with aria-pressed on Everyday ({seg})')
+    check(seg and seg['n'] == 3 and seg['labels'] == ['Tech', 'Everyday', 'Home'] and seg['pressed'] == ['false', 'false', 'true'] and seg['role'] == 'group' and seg['aria'] == 'Product set', f'Products: set switch is a three-button group with aria-pressed on Home ({seg})')
+    # the toolbar still fits: no control overlaps another and the switch sits on the same row as Shuffle at 1280 px
+    boxes = page.evaluate("()=>[...document.querySelectorAll('.pv-tools > *')].filter(e=>e.offsetWidth).map(e=>{const r=e.getBoundingClientRect();return [e.className||e.id,r.left,r.top,r.right,r.bottom];})")
+    overlap = [(a[0], b[0]) for i, a in enumerate(boxes) for b in boxes[i+1:] if a[1] < b[3] - 1 and b[1] < a[3] - 1 and a[2] < b[4] - 1 and b[2] < a[4] - 1]
+    seg_mid = page.evaluate("()=>{const r=document.querySelector('.pv-set').getBoundingClientRect();return (r.top+r.bottom)/2;}"); sh_mid = page.evaluate("()=>{const r=document.querySelector('#pvShuffle').getBoundingClientRect();return (r.top+r.bottom)/2;}")
+    check(not overlap and abs(seg_mid - sh_mid) < 10, f'Products: toolbar controls do not overlap and the 3-way switch shares a row with Shuffle at 1280 px ({overlap}, {seg_mid:.0f} vs {sh_mid:.0f})')
     before = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
     page.click('.pv-set button[data-set="tech"]')
     after = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
     pressed = page.evaluate("()=>[...document.querySelectorAll('.pv-set button')].map(b=>b.getAttribute('aria-pressed'))")
-    check(before != after and pressed == ['true', 'false'] and page.evaluate("()=>pv.productSet") == 0, f'Products: clicking Tech redraws the scene and moves aria-pressed ({pressed})')
+    check(before != after and pressed == ['true', 'false', 'false'] and page.evaluate("()=>pv.productSet") == 0, f'Products: clicking Tech redraws the scene and moves aria-pressed ({pressed})')
+    page.click('.pv-set button[data-set="home"]')
+    pressed = page.evaluate("()=>[...document.querySelectorAll('.pv-set button')].map(b=>b.getAttribute('aria-pressed'))")
+    check(pressed == ['false', 'false', 'true'] and page.evaluate("()=>pv.productSet") == 2 and page.evaluate("()=>document.querySelector('.pv-stage svg').textContent.includes('TABLE LAMP')"), f'Products: clicking Home draws the lamp and moves aria-pressed ({pressed})')
     page.click('.pv-set button[data-set="everyday"]')
     for sid in SCENES:
         if sid == 'product': continue
@@ -154,6 +162,10 @@ with sync_playwright() as pw:
     page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;pv.base='light';pv.shuffle=0;renderPreview();}", PALS[5])
     page.screenshot(path=shot('pv_products_everyday.png'))
     page.evaluate(SET_MODE, 'exact'); page.evaluate("()=>renderPreview()"); page.screenshot(path=shot('pv_products_everyday_exact_5.png'))
+    page.click('.pv-set button[data-set="home"]')
+    page.evaluate(SET_MODE, 'normal'); page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
+    page.screenshot(path=shot('pv_products_home.png'))
+    page.evaluate(SET_MODE, 'exact'); page.evaluate("()=>renderPreview()"); page.screenshot(path=shot('pv_products_home_exact_5.png'))
     page.click('.pv-set button[data-set="tech"]')
     page.evaluate(SET_MODE, 'normal'); page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;pv.base='light';pv.shuffle=0;renderPreview();}", PALS[5])
     page.screenshot(path=shot('pv_products.png'))

@@ -108,6 +108,9 @@ for mode in ('precise', 'exact'):
                         js("pv.productSet=1;renderPreview();")
                         m2 = js(MISSING); labs = js("return [...document.querySelectorAll('.pv-stage svg text')].map(t=>t.textContent).filter(t=>/^[A-Z][A-Z ]*$/.test(t))")
                         check(not m2['stage'] and not m2['chips'] and labs == ['SNEAKER', 'BACKPACK', 'PHONE CASE', 'COFFEE MUG'], f'{mode} product/everyday {n} {b} shuffle{k}: all exact hexes in scene + chips, four labelled products' + ('' if not (m2['stage'] or m2['chips']) else f' missing {m2}') + f' {labs}')
+                        js("pv.productSet=2;renderPreview();")
+                        m3 = js(MISSING); labs = js("return [...document.querySelectorAll('.pv-stage svg text')].map(t=>t.textContent).filter(t=>/^[A-Z][A-Z ]*$/.test(t))")
+                        check(not m3['stage'] and not m3['chips'] and labs == ['TABLE LAMP', 'ARMCHAIR', 'VASE', 'THROW PILLOW'], f'{mode} product/home {n} {b} shuffle{k}: all exact hexes in scene + chips, four labelled products' + ('' if not (m3['stage'] or m3['chips']) else f' missing {m3}') + f' {labs}')
                         js("pv.productSet=0;renderPreview();")
         if mode == 'exact' and n == 4:
             tab('web'); base('light'); drv.save_screenshot(os.path.join(OUT, f'ffdev_exact_{n}.png'))
@@ -115,11 +118,14 @@ js("collection().items[pv.idx].colors=arguments[0];pv.precise=false;for(const k 
 base('light')
 # Products set switch: only on the Products tab, selection kept across tabs and Prev/Next
 tab('product'); seg = js("const g=document.querySelector('.pv-set');return g?[...g.querySelectorAll('button')].map(b=>[b.dataset.set,b.getAttribute('aria-pressed')]):null")
-check(seg == [['tech', 'true'], ['everyday', 'false']], f'Products: Tech / Everyday switch present, Tech selected {seg}')
+check(seg == [['tech', 'true'], ['everyday', 'false'], ['home', 'false']], f'Products: Tech / Everyday / Home switch present, Tech selected {seg}')
 drv.find_element(By.CSS_SELECTOR, '.pv-set button[data-set="everyday"]').click()
 check(js("return pv.productSet===1&&document.querySelector('.pv-set button[data-set=everyday]').getAttribute('aria-pressed')==='true'&&document.querySelector('.pv-stage svg').textContent.includes('SNEAKER')"), 'Products: clicking Everyday selects it and draws the sneaker')
 tab('web'); check(js("return !document.querySelector('.pv-set')"), 'Products: switch hidden on the Website tab')
 tab('product'); check(js("return pv.productSet===1&&document.querySelector('.pv-stage svg').textContent.includes('COFFEE MUG')"), 'Products: Everyday kept after a tab change')
+drv.find_element(By.CSS_SELECTOR, '.pv-set button[data-set="home"]').click()
+check(js("return pv.productSet===2&&document.querySelector('.pv-set button[data-set=home]').getAttribute('aria-pressed')==='true'&&document.querySelector('.pv-stage svg').textContent.includes('THROW PILLOW')"), 'Products: clicking Home selects it and draws the pillow')
+tab('poster'); tab('product'); check(js("return pv.productSet===2&&document.querySelector('.pv-stage svg').textContent.includes('VASE')"), 'Products: Home kept after a tab change')
 drv.find_element(By.CSS_SELECTOR, '.pv-set button[data-set="tech"]').click(); check(js("return pv.productSet===0&&document.querySelector('.pv-stage svg').textContent.includes('HEADPHONES')"), 'Products: back to Tech')
 drv.save_screenshot(os.path.join(OUT, 'ffdev_products.png'))
 # Precise toggle disabled on photo

@@ -193,3 +193,41 @@ Full run after the review: all 7 suites in Chromium and Firefox exit 0
 (`test_preview.py` 434 checks in Chromium, both sets covered), and the stock
 Firefox Developer Edition smoke test passes 414 checks including the Everyday
 hex / label checks and the switch. Verdict: PASS.
+
+## Round 7 — third Products set ("Home") and the Tech / Everyday / Home switch
+
+Scope: the Home 2×2 set (table lamp, armchair, vase, throw pillow) added to
+the Products scene, the third segment of the `.pv-set` control, the Home
+entries in `pvProductMap` and `PV_PRODUCT_EXACT` (2 / 3 / 4 / 5 colours), the
+new checks in `test_preview.py` and `test_ffdev.py`, README §7 and
+`docs/screenshots/pv_products_home.png` (plus refreshed `pv_products.png`
+and `pv_products_everyday.png` showing the three-way control).
+
+Two independent reviewer passes (code review + switch behaviour; visual /
+contrast probe) were given README.md and the findings document and an
+adversarial brief. They reviewed every hunk of the diff, re-ran
+`test_preview.py` (exit 0), and probed the Home set for 2 / 3 / 4 / 5 / 6 /
+8-colour palettes × normal / Precise / exact × Light / Dark × shuffle steps
+0–2 (108 combinations, 111 screenshots including the dark app theme and Tech /
+Everyday regression shots; contact sheets inspected). Measured label
+contrast: lowest 4.72 : 1 in normal mode, 3.20 : 1 in Precise and exact
+(against the 4.5 : 1 / 3 : 1 requirements). Every shape stays inside its
+card, no part is filled with its card colour, exact-count layouts render for
+2–5 colours and the strip for 6+, Light ≠ Dark at every shuffle step except
+the known middle-colour steps of odd palettes in Precise / exact. Switch:
+three buttons with correct `aria-pressed`, `role="group"` and
+`aria-label="Product set"`, absent on the seven other tabs, selection kept
+across Prev / Next, tab changes, Shuffle, Light / Dark and Precise / exact;
+nothing written to localStorage; an out-of-range `pv.productSet` (3, -1,
+`'home'`) falls back to Tech. Tech and Everyday render unchanged.
+
+Findings: no defects. One observation: at a 1280 px wide viewport the
+three-segment control makes the Products toolbar wrap so that Light / Dark
+moves to a second row; nothing overlaps (a new `test_preview.py` check asserts
+no overlapping toolbar boxes and that the control sits on the Shuffle row),
+and this matches the existing `flex-wrap` behaviour noted in Round 6.
+
+Full run after the review: all 7 suites in Chromium and Firefox exit 0
+(`test_preview.py` 507 checks in Chromium, all three sets covered), and the
+stock Firefox Developer Edition smoke test passes 464 checks including the
+Home hex / label checks and the three-state switch. Verdict: PASS.

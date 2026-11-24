@@ -123,10 +123,11 @@ const PV_F='font-family="system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial
 function pvSvg(inner){return`<svg viewBox="0 0 800 500" width="100%" height="100%" ${PV_F} role="img">${inner}</svg>`;}
 /* ---------- Products scene: four flat products on a 2 × 2 grid of cards ----------
    One drawing routine shared by the normal layout and the exact-count layouts; only the colour map differs, so the
-   geometry is identical in every mode. C = {bg, card, stroke, label, hp, tum, watch, pad} (see pvProductMap). */
-const PV_PRODUCT_SETS=[['tech','Tech'],['everyday','Everyday']];
+   geometry is identical in every mode. C = {bg, card, stroke, label, hp, tum, watch, pad, shoe, bag, phone, mug, lamp, chair, vase, pillow} (see pvProductMap). */
+const PV_PRODUCT_SETS=[['tech','Tech','Headphones, tumbler, smartwatch and controller'],['everyday','Everyday','Sneaker, backpack, phone case and coffee mug'],['home','Home','Table lamp, armchair, vase and throw pillow']];
 const PV_PRODUCT_CARDS=[[[16,16,'HEADPHONES'],[408,16,'TUMBLER'],[16,258,'SMARTWATCH'],[408,258,'CONTROLLER']],
-  [[16,16,'SNEAKER'],[408,16,'BACKPACK'],[16,258,'PHONE CASE'],[408,258,'COFFEE MUG']]];
+  [[16,16,'SNEAKER'],[408,16,'BACKPACK'],[16,258,'PHONE CASE'],[408,258,'COFFEE MUG']],
+  [[16,16,'TABLE LAMP'],[408,16,'ARMCHAIR'],[16,258,'VASE'],[408,258,'THROW PILLOW']]];
 function pvProductSvg(C){
   const set=PV_PRODUCT_SETS[pv.productSet]?pv.productSet:0;
   const card=(x,y)=>`<rect x="${x}" y="${y}" width="376" height="226" rx="16" fill="${C.card||'none'}"${C.stroke?` stroke="${C.stroke}" stroke-width="2"`:''}/>`;
@@ -181,8 +182,33 @@ function pvProductSvg(C){
 <path d="M${cx-62} ${cy-40} h112 v88 a22 22 0 0 1 -22 22 h-68 a22 22 0 0 1 -22 -22 z" fill="${c.body}"/>
 <rect x="${cx-62}" y="${cy-40}" width="112" height="18" fill="${c.band}"/>
 <path d="M${cx-32} ${cy-56} c-8 -12 8 -20 0 -34 M${cx-6} ${cy-56} c-8 -12 8 -20 0 -34 M${cx+20} ${cy-56} c-8 -12 8 -20 0 -34" stroke="${c.steam}" stroke-width="4" fill="none" stroke-linecap="round"/>`;};
-  const draw=set?[sneaker,backpack,phone,mug]:[headphones,tumbler,watch,controller];
-  const dy=set?[116,118,118,112]:[118,122,122,110];
+  /* third set: home goods */
+  const lamp=(cx,cy)=>{const c=C.lamp;
+    return`<ellipse cx="${cx}" cy="${cy+84}" rx="60" ry="14" fill="${c.base}"/><rect x="${cx-30}" y="${cy+66}" width="60" height="18" rx="6" fill="${c.base}"/>
+<rect x="${cx-7}" y="${cy-12}" width="14" height="84" fill="${c.stem}"/>
+<ellipse cx="${cx}" cy="${cy-2}" rx="56" ry="16" fill="${c.glow}"/>
+<path d="M${cx-50} ${cy-78} h100 l34 72 h-168 z" fill="${c.shade}"/>
+<rect x="${cx-86}" y="${cy-12}" width="172" height="8" rx="3" fill="${c.band}"/>
+<rect x="${cx-10}" y="${cy-90}" width="20" height="12" rx="4" fill="${c.base}"/>`;};
+  const armchair=(cx,cy)=>{const c=C.chair;
+    return`<rect x="${cx-80}" y="${cy+58}" width="14" height="32" rx="3" fill="${c.leg}"/><rect x="${cx+66}" y="${cy+58}" width="14" height="32" rx="3" fill="${c.leg}"/>
+<rect x="${cx-70}" y="${cy-80}" width="140" height="120" rx="24" fill="${c.back}"/>
+<rect x="${cx-40}" y="${cy-56}" width="80" height="50" rx="12" fill="${c.cushion}"/>
+<rect x="${cx-84}" y="${cy+10}" width="168" height="50" rx="14" fill="${c.seat}"/>
+<rect x="${cx-106}" y="${cy-22}" width="34" height="86" rx="15" fill="${c.arm}"/><rect x="${cx+72}" y="${cy-22}" width="34" height="86" rx="15" fill="${c.arm}"/>`;};
+  const vase=(cx,cy)=>{const c=C.vase;
+    return`<path d="M${cx-2} ${cy-56} c-6 -22 4 -38 -2 -60 M${cx+4} ${cy-56} c8 -16 22 -26 40 -30" stroke="${c.stem}" stroke-width="4" fill="none" stroke-linecap="round"/>
+<ellipse cx="${cx+46}" cy="${cy-88}" rx="15" ry="7" fill="${c.leaf}" transform="rotate(-28 ${cx+46} ${cy-88})"/><ellipse cx="${cx-14}" cy="${cy-100}" rx="13" ry="7" fill="${c.leaf}" transform="rotate(60 ${cx-14} ${cy-100})"/>
+<rect x="${cx-20}" y="${cy-60}" width="40" height="32" rx="6" fill="${c.neck}"/><rect x="${cx-28}" y="${cy-68}" width="56" height="12" rx="5" fill="${c.neck}"/>
+<path d="M${cx-20} ${cy-30} c-66 14 -66 106 0 122 h40 c66 -16 66 -108 0 -122 z" fill="${c.body}"/>
+<rect x="${cx-52}" y="${cy+18}" width="104" height="12" fill="${c.band}"/>`;};
+  const pillow=(cx,cy)=>{const c=C.pillow,d=`M${cx-90} ${cy-72} q90 -14 180 0 q14 72 0 144 q-90 14 -180 0 q-14 -72 0 -144 z`;
+    return`<path d="${d}" fill="${c.body}"/><path d="${d}" fill="none" stroke="${c.piping}" stroke-width="5" stroke-linejoin="round"/>
+<path d="M${cx} ${cy-38} l38 38 l-38 38 l-38 -38 z" fill="${c.pattern}"/>
+<path d="M${cx-58} ${cy-14} l14 14 l-14 14 l-14 -14 z M${cx+58} ${cy-14} l14 14 l-14 14 l-14 -14 z" fill="${c.pattern}"/>
+<circle cx="${cx}" cy="${cy}" r="7" fill="${c.button}"/>`;};
+  const draw=[[headphones,tumbler,watch,controller],[sneaker,backpack,phone,mug],[lamp,armchair,vase,pillow]][set];
+  const dy=[[118,122,122,110],[116,118,118,112],[120,120,124,118]][set];
   return pvSvg(`<rect width="800" height="500" fill="${C.bg}"/>`+PV_PRODUCT_CARDS[set].map(([x,y,t],i)=>card(x,y)+label(x,y,t)+draw[i](x+188,y+dy[i])).join(''));
 }
 /* Colour map for the normal (and Precise-with-derived-roles) layout */
@@ -198,7 +224,11 @@ function pvProductMap(R){
     shoe:{upper:R.primary,sole:R.text,mid:R.surface,lace:R.surface,stripe:R.accent},
     bag:{body:body,pocket:R.accent,strap:R.text,zip:R.text},
     phone:{case:R.accent,bump:R.text,lens:R.surface,button:R.primary},
-    mug:{body:R.primary,handle:R.text,band:R.accent,steam:R.text,saucer:band}};
+    mug:{body:R.primary,handle:R.text,band:R.accent,steam:R.text,saucer:band},
+    lamp:{shade:R.primary,base:R.text,stem:R.text,band:R.accent,glow:band},
+    chair:{back:body,seat:R.primary,arm:body,leg:R.text,cushion:R.accent},
+    vase:{body:R.accent,neck:R.text,band:R.primary,stem:R.text,leaf:R.primary},
+    pillow:{body:R.primary,piping:R.text,pattern:R.accent,button:R.text}};
 }
 /* Exact-count colour maps: 2 = background + text; 3 = + primary; 4 = + surface (cards); 5 = + accent */
 const PV_PRODUCT_EXACT={
@@ -206,22 +236,30 @@ const PV_PRODUCT_EXACT={
     hp:{cup:T,band:T,yoke:bg,pad:bg},tum:{body:T,lid:T,band:bg,base:T},
     watch:{case:T,band:T,crown:T,screen:bg,ring:T,time:T},pad:{body:T,dpad:bg,btnA:bg,btnB:bg,stick:bg,stickTop:T},
     shoe:{upper:T,sole:T,mid:bg,lace:bg,stripe:bg},bag:{body:T,pocket:bg,strap:T,zip:T},
-    phone:{case:T,bump:bg,lens:T,button:bg},mug:{body:T,handle:T,band:bg,steam:T,saucer:T}};},
+    phone:{case:T,bump:bg,lens:T,button:bg},mug:{body:T,handle:T,band:bg,steam:T,saucer:T},
+    lamp:{shade:T,base:T,stem:T,band:bg,glow:bg},chair:{back:T,seat:T,arm:T,leg:T,cushion:bg},
+    vase:{body:T,neck:T,band:bg,stem:T,leaf:T},pillow:{body:T,piping:T,pattern:bg,button:T}};},
   3(X){const{bg,text:T,primary:P}=X;return{bg,card:null,stroke:T,label:T,
     hp:{cup:P,band:T,yoke:P,pad:bg},tum:{body:P,lid:T,band:T,base:T},
     watch:{case:T,band:P,crown:T,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:T,btnB:T,stick:T,stickTop:P},
     shoe:{upper:P,sole:T,mid:bg,lace:T,stripe:T},bag:{body:P,pocket:T,strap:T,zip:bg},
-    phone:{case:P,bump:T,lens:bg,button:T},mug:{body:P,handle:T,band:T,steam:T,saucer:T}};},
+    phone:{case:P,bump:T,lens:bg,button:T},mug:{body:P,handle:T,band:T,steam:T,saucer:T},
+    lamp:{shade:P,base:T,stem:T,band:T,glow:bg},chair:{back:P,seat:T,arm:P,leg:T,cushion:T},
+    vase:{body:P,neck:T,band:T,stem:T,leaf:P},pillow:{body:P,piping:T,pattern:T,button:bg}};},
   4(X){const{bg,text:T,primary:P,surface:S}=X;return{bg,card:S,stroke:null,label:X.on(S),
     hp:{cup:P,band:T,yoke:bg,pad:S},tum:{body:P,lid:T,band:bg,base:T},
     watch:{case:T,band:P,crown:bg,screen:bg,ring:P,time:T},pad:{body:P,dpad:T,btnA:bg,btnB:T,stick:T,stickTop:S},
     shoe:{upper:P,sole:T,mid:bg,lace:bg,stripe:T},bag:{body:P,pocket:T,strap:T,zip:S},
-    phone:{case:P,bump:T,lens:S,button:bg},mug:{body:P,handle:T,band:T,steam:T,saucer:bg}};},
+    phone:{case:P,bump:T,lens:S,button:bg},mug:{body:P,handle:T,band:T,steam:T,saucer:bg},
+    lamp:{shade:P,base:T,stem:T,band:bg,glow:bg},chair:{back:P,seat:T,arm:P,leg:T,cushion:S},
+    vase:{body:P,neck:T,band:bg,stem:T,leaf:P},pillow:{body:P,piping:T,pattern:S,button:bg}};},
   5(X){const{bg,text:T,primary:P,surface:S,accent:A}=X;return{bg,card:S,stroke:null,label:X.on(S),
     hp:{cup:P,band:T,yoke:A,pad:S},tum:{body:A,lid:T,band:P,base:bg},
     watch:{case:T,band:P,crown:A,screen:bg,ring:A,time:T},pad:{body:P,dpad:T,btnA:A,btnB:bg,stick:T,stickTop:A},
     shoe:{upper:P,sole:T,mid:bg,lace:S,stripe:A},bag:{body:P,pocket:A,strap:T,zip:S},
-    phone:{case:A,bump:T,lens:S,button:P},mug:{body:P,handle:T,band:A,steam:T,saucer:bg}};}
+    phone:{case:A,bump:T,lens:S,button:P},mug:{body:P,handle:T,band:A,steam:T,saucer:bg},
+    lamp:{shade:P,base:T,stem:T,band:A,glow:bg},chair:{back:P,seat:A,arm:P,leg:T,cushion:S},
+    vase:{body:A,neck:T,band:P,stem:T,leaf:P},pillow:{body:P,piping:T,pattern:A,button:S}};}
 };
 
 const PV_SCENE_FN={
@@ -808,7 +846,7 @@ function renderPreview(){
       h('span',{style:'flex:1'}),
       check('pvPrecise','Precise',pv.precise,'Show every palette colour with its exact value',v=>{pv.precise=v;}),
       pv.precise?check('pvExact','Use exact number of colours',!!pv.exact[sid],`A layout made for ${p.colors.length}-colour palettes in the ${slabel} preview; off = the standard layout with the missing roles derived from the palette`,v=>{pv.exact[sid]=v;}):null,
-      sid==='product'?h('div',{class:'seg pv-set',role:'group','aria-label':'Product set'},...PV_PRODUCT_SETS.map(([id,l],i)=>h('button',{type:'button','data-set':id,'aria-pressed':String(pv.productSet===i),title:i?'Sneaker, backpack, phone case and coffee mug':'Headphones, tumbler, smartwatch and controller',onclick:()=>{pv.productSet=i;renderPreview();}},l))):null,
+      sid==='product'?h('div',{class:'seg pv-set',role:'group','aria-label':'Product set'},...PV_PRODUCT_SETS.map(([id,l,tip],i)=>h('button',{type:'button','data-set':id,'aria-pressed':String(pv.productSet===i),title:tip,onclick:()=>{pv.productSet=i;renderPreview();}},l))):null,
       h('button',{type:'button',class:'btn small',id:'pvShuffle',title:pv.precise?'Cycle which palette colour takes which role':'Cycle through role assignments',onclick:()=>{pv.shuffle++;renderPreview();}},'⇄ Shuffle roles'),
       h('div',{class:'seg',role:'group','aria-label':'Base'},h('button',{type:'button','data-base':'light','aria-pressed':String(!R.dark),onclick:()=>{pv.base='light';renderPreview();}},'Light'),h('button',{type:'button','data-base':'dark','aria-pressed':String(!!R.dark),onclick:()=>{pv.base='dark';renderPreview();}},'Dark')));
     if(sid==='text'){
