@@ -6,6 +6,9 @@ Both sync and async Playwright objects work, because `launch()` only picks the
 BrowserType and builds keyword arguments; the caller awaits if needed.
 """
 import os, sys
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, 'reconfigure'):
+        _s.reconfigure(encoding='utf-8', errors='replace')  # Windows consoles default to cp1252
 
 BROWSER = (os.environ.get('BROWSER') or (sys.argv[1] if len(sys.argv) > 1 else 'chromium')).lower()
 assert BROWSER in ('chromium', 'firefox', 'msedge'), BROWSER

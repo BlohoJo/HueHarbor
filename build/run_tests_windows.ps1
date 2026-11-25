@@ -22,7 +22,7 @@
 
 .PARAMETER Browsers   Comma-separated subset of firefox,msedge,ffdev (default: all three).
 .PARAMETER Only       Run just one suite, e.g. test_preview.py (ffdev ignores this).
-.PARAMETER FFDevBin   Path to Firefox Developer Edition firefox.exe.
+.PARAMETER FFDevBin   Path to Firefox Developer Edition firefox.exe (a PortableApps FirefoxPortable.exe is resolved to the firefox.exe it wraps).
 .PARAMETER SkipInstall  Skip pip install / playwright install (after the first successful run).
 .PARAMETER Geckodriver  Optional geckodriver.exe path; by default Selenium Manager fetches one.
 #>
@@ -38,6 +38,9 @@ param(
 $ErrorActionPreference = 'Continue'
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
+# The test scripts print characters outside cp1252 (arrows, ticks); make Python and the console use UTF-8.
+$env:PYTHONUTF8 = '1'; $env:PYTHONIOENCODING = 'utf-8'
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $Browsers = @($Browsers | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ })
 $Suites = @('test.py', 'test_export.py', 'test_bg.py', 'test_ff_probe.py', 'test_preview.py', 'test_perf.py', 'test_magnify.py')
 if ($Only) { $Suites = @($Suites | Where-Object { $_ -ieq $Only }); if (-not $Suites) { Write-Error "Unknown suite '$Only'"; exit 2 } }
@@ -88,9 +91,16 @@ function FileVersion($path) {
   if ($path -and (Test-Path $path)) { try { return (Get-Item $path).VersionInfo.ProductVersion } catch { return '?' } }
   return 'not found'
 }
+# A PortableApps launcher (FirefoxPortable.exe) reports its own version (2.x) and cannot be driven: use the real firefox.exe inside it
+if ($FFDevBin -and ((Split-Path -Leaf $FFDevBin) -ieq 'FirefoxPortable.exe')) {
+  $pd = Split-Path -Parent $FFDevBin
+  foreach ($cand in @((Join-Path $pd 'App\Firefox64\firefox.exe'), (Join-Path $pd 'App\Firefox\firefox.exe'))) {
+    if (Test-Path $cand) { Say "Portable Firefox launcher given; using $cand"; $FFDevBin = $cand; break }
+  }
+}
 $EdgeExe = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe", "$env:LOCALAPPDATA\Microsoft\Edge\Application\msedge.exe") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 $PyVer = (& $VenvPy -c 'import sys;print(sys.version.split()[0])' 2>$null)
-$PwVer = (& $VenvPy -c 'from importlib.metadata import version;print(version("playwright"))' 2>$null)
+$PwVer = "$(& $VenvPy -m playwright --version 2>&1)".Replace('Version ', '').Trim()
 $SeVer = (& $VenvPy -c 'import selenium;print(selenium.__version__)' 2>$null)
 $OsInfo = if ($IsWin) { try { (Get-CimInstance Win32_OperatingSystem).Caption + ' ' + (Get-CimInstance Win32_OperatingSystem).Version } catch { [Environment]::OSVersion.VersionString } } else { [Environment]::OSVersion.VersionString }
 $EnvLines = @(
@@ -110,15 +120,22 @@ $EnvLines | ForEach-Object { Say $_ }
 $Results = @()
 function Run-One($label, $browser, $script, $envMap) {
   $log = Join-Path $LogDir ("{0}_{1}.log" -f $browser, ($script -replace '\.py$', ''))
-  Say "$Sep`n>> $label  ($script)"
+  Say "$Sep`n>> $label  ($script)  ... running, output goes to $(Split-Path -Leaf $log)"
   $saved = @{}
   foreach ($k in $envMap.Keys) { $saved[$k] = [Environment]::GetEnvironmentVariable($k); [Environment]::SetEnvironmentVariable($k, $envMap[$k]) }
   $sw = [Diagnostics.Stopwatch]::StartNew()
-  & $VenvPy (Join-Path $Root "build\$script") *>&1 | Tee-Object -FilePath $log | Out-Null
+  # Run through cmd.exe so stdout+stderr land in the log as plain UTF-8 text (Windows PowerShell 5.1 would otherwise
+  # wrap every stderr line in a red NativeCommandError record).
+  $scriptPath = Join-Path $Root "build\$script"
+  if ($IsWin) {
+    & cmd.exe /d /c "`"$VenvPy`" `"$scriptPath`" > `"$log`" 2>&1"
+  } else {
+    & $VenvPy $scriptPath *> $log
+  }
   $code = $LASTEXITCODE
   $sw.Stop()
   foreach ($k in $envMap.Keys) { [Environment]::SetEnvironmentVariable($k, $saved[$k]) }
-  $text = if (Test-Path $log) { Get-Content $log -Raw } else { '' }
+  $text = if (Test-Path $log) { Get-Content $log -Raw -Encoding UTF8 } else { '' }
   $okN = ([regex]::Matches($text, '(?m)^ok\b')).Count
   $failN = ([regex]::Matches($text, '(?m)^FAIL\b')).Count
   $status = if ($code -eq 0) { 'PASS' } else { 'FAIL' }
@@ -150,7 +167,7 @@ $Lines = @() + $EnvLines + '' + $Table.TrimEnd() + ''
 $Lines += "Totals: $(@($Results | Where-Object Status -eq 'PASS').Count) passed, $($Failed.Count) failed, $(@($Results | Where-Object Status -eq 'SKIP').Count) skipped"
 foreach ($f in $Failed) {
   $Lines += ''; $Lines += "$Sep"; $Lines += "LAST 40 LINES: $($f.Browser) / $($f.Suite)  ($($f.Log))"
-  if (Test-Path $f.Log) { $Lines += (Get-Content $f.Log -Tail 40) }
+  if (Test-Path $f.Log) { $Lines += (Get-Content $f.Log -Tail 40 -Encoding UTF8) }
 }
 $Lines | Set-Content -Path $Report -Encoding UTF8
 Say $Sep

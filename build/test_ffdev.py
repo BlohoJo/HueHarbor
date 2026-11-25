@@ -11,6 +11,9 @@ Run:
    On Windows, FFDEV_BIN defaults to "C:\Program Files\Firefox Developer Edition\firefox.exe" when it exists.)
 Screenshots go to shots/ffdev/. Exit code 1 on any failed check or page error."""
 import os, sys, time, json
+for _s in (sys.stdout, sys.stderr):
+    if hasattr(_s, 'reconfigure'):
+        _s.reconfigure(encoding='utf-8', errors='replace')  # Windows consoles default to cp1252
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
@@ -24,6 +27,19 @@ OUT = os.path.join(ROOT, 'shots', 'ffdev'); os.makedirs(OUT, exist_ok=True)
 _WIN_FFDEV = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
 FFDEV_BIN = os.environ.get('FFDEV_BIN') or (_WIN_FFDEV if os.name == 'nt' and os.path.exists(_WIN_FFDEV) else 'firefox')
 GECKODRIVER = os.environ.get('GECKODRIVER')  # None -> Selenium Manager resolves/downloads geckodriver
+
+
+def real_firefox(path):
+    """PortableApps launchers (FirefoxPortable.exe, version 2.x) are not Firefox: use the firefox.exe they wrap."""
+    if os.path.basename(path).lower() == 'firefoxportable.exe':
+        d = os.path.dirname(path)
+        for sub in ('App/Firefox64/firefox.exe', 'App/Firefox/firefox.exe'):
+            cand = os.path.join(d, *sub.split('/'))
+            if os.path.exists(cand): return cand
+    return path
+
+
+FFDEV_BIN = real_firefox(FFDEV_BIN)
 PALS = {2: ['#2f6ea5', '#f2c14e'], 3: ['#1b263b', '#e0e1dd', '#e63946'], 4: ['#F5E1D5', '#DCF0E4', '#F1E2F3', '#7B2CBF'], 5: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51']}
 SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'sign']
 fails = []
