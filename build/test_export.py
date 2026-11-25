@@ -1,12 +1,12 @@
 """Export verification: trigger .ase/.gpl downloads in headless Chromium, then parse them in Python."""
 import os, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot
+from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot, file_url, export_dir
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
-OUT = os.path.join(ROOT, 'shots', 'firefox' if IS_FIREFOX else '', 'exports')
+URL = file_url()
+OUT = export_dir()
 os.makedirs(OUT, exist_ok=True)
 
 

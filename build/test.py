@@ -1,8 +1,8 @@
 import asyncio, json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from browsers import BROWSER, IS_FIREFOX, ROOT, launch_kwargs, context_kwargs, browser_type, shot
+from browsers import BROWSER, IS_FIREFOX, ROOT, launch_kwargs, context_kwargs, browser_type, shot, file_url
 from playwright.async_api import async_playwright
-URL='file://'+os.path.join(ROOT,'palette_picker.html')
+URL = file_url()
 async def clip(page):
     try: return await page.evaluate("navigator.clipboard.readText()")
     except Exception as e: return 'CLIPBOARD-UNAVAILABLE'

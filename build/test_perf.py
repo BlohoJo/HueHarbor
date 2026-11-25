@@ -12,11 +12,11 @@ Works on both the old and the new pipeline because it only wraps the global entr
 """
 import os, sys, struct, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot, FIXTURES
+from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot, FIXTURES, file_url, export_dir
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
+URL = file_url()
 BIG = os.path.join(FIXTURES, 'big_photo.png')
 W, H = 4000, 3000
 errors, fails = [], []
@@ -98,7 +98,7 @@ with sync_playwright() as pw:
     page.evaluate("()=>{__perf.t0=performance.now();__perf.dl=null;}")
     with page.expect_download(timeout=120000) as dl:
         page.click('#pvDownload')
-    d = dl.value; path = os.path.join(ROOT, 'shots', 'firefox' if IS_FIREFOX else '', 'exports', d.suggested_filename)
+    d = dl.value; path = os.path.join(export_dir(), d.suggested_filename)
     os.makedirs(os.path.dirname(path), exist_ok=True); d.save_as(path); data = open(path, 'rb').read()
     w, hh = struct.unpack('>II', data[16:24])
     results['export_ms'] = page.evaluate("()=>__perf.dl&&__perf.dl.ms")
