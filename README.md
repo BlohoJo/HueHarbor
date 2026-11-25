@@ -378,6 +378,8 @@ The first run creates a private virtual environment in `build\.venv-win` (ignore
 
 Suites: `test.py`, `test_export.py`, `test_bg.py`, `test_ff_probe.py`, `test_preview.py`, `test_magnify.py`, `test_perf.py`. Each prints `ERRORS []` (and `FAILS []` where applicable) and exits with status 0 when it passes. Screenshots and exported files are written to `shots/` (ignored by git); generated test images go to `~/.tmp/hueharbor-fixtures/` (override with `HH_FIXTURES=/some/dir`).
 
+**Verified on Windows** (25 Nov 2026): 15 of 15 rows passed on Windows 10 Pro (10.0.19045) with Python 3.9.18, Playwright 1.60.0, Selenium 4.36.0, Microsoft Edge 122 and Firefox Developer Edition 161 (portable). `test_preview.py` checked 747 scene assertions per browser, `test_magnify.py` 23, `test_ff_probe.py` 18, and `test_ffdev.py` ran all 664 Developer Edition checks in about 110 seconds. Total wall-clock time was roughly six minutes.
+
 The modals (Help, Magnify, Preview) keep keyboard focus inside while open and return it to the button that opened them; the app also honours the operating system's *reduce motion* setting.
 
 ---
