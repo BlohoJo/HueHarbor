@@ -192,6 +192,7 @@ input.mono{font-family:var(--mono)}
 .mag-stage .sample .light{color:#fff}
 .mag-stage .sample .dark{color:#111;margin-left:12px}
 .mag-stage .sample small{display:block;opacity:.8;font-weight:400;font-size:13px;margin-top:2px}
+.mag-stage .sample small .txt{display:inline-block;max-width:100%}
 .mag-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
 .listmgr table{width:100%;border-collapse:collapse;font-size:14px}
 .listmgr td,.listmgr th{text-align:left;padding:6px 6px;border-bottom:1px solid var(--border)}
@@ -1074,7 +1075,7 @@ function renderMagnify(){
     const W=56,H=3000,parts=[];for(let i=0,x=-H;x<H+W;x+=W,i++)parts.push(`<polygon points="${x},0 ${x+W},0 ${x+W-H},${H} ${x-H},${H}" fill="${cols[i%n]}" data-c="${cols[i%n]}"/>`);
     stage.append(h('div',{class:'cell diag',style:'left:0;top:0;width:100%;height:100%',title:'Click to rotate colours',onclick:rotate,html:`<svg width="100%" height="100%" aria-hidden="true">${parts.join('')}</svg>`}));
   }
-  stage.append(h('div',{class:'sample'},h('span',{class:'light'},'Sample text'),h('span',{class:'dark'},'Sample text'),h('small',{style:'color:'+textOn(MAG_BG[mag.bg])},`${p.name} · palette ${mag.idx+1} of ${items.length}`)));
+  stage.append(h('div',{class:'sample'},h('span',{class:'light'},'Sample text'),h('span',{class:'dark'},'Sample text'),h('small',{style:'color:'+textOn(MAG_BG[mag.bg])},h('span',{class:'txt'},`${p.name} · palette ${mag.idx+1} of ${items.length}`))));
   const box=h('div',{class:'box'},
     h('button',{type:'button',class:'btn small close',onclick:closeModal},'Close ✕'),
     h('h2',null,'Magnified preview'),
@@ -1094,15 +1095,18 @@ function renderMagnify(){
     h('div',{class:'row',style:'margin-top:10px;gap:6px'},...cols.map(c=>h('span',{class:'contrast-note',style:'font-family:var(--mono)'},h('span',{style:'display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid var(--border);background:'+c}),c.toUpperCase())))
   );
   openModal(box);magUpdateSample();
-  /* re-sample once layout and system fonts have settled (first open on some platforms lays out the text a frame later) */
-  requestAnimationFrame(()=>{if($('.mag-stage'))magUpdateSample();});
-  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if($('.mag-stage'))magUpdateSample();});
+  /* Re-sample whenever the overlay text box changes size: on some platforms (Firefox on Windows initialises its system
+     font list asynchronously) the first layout uses a placeholder font and the text widens a moment later, which can
+     move it across a panel gap. ResizeObserver covers that, window resizes and zoom; fonts.ready covers web fonts. */
+  const tx=stage.querySelector('.sample small .txt');
+  if(tx&&window.ResizeObserver){const ro=new ResizeObserver(()=>{if(stage.isConnected)magUpdateSample();else ro.disconnect();});ro.observe(tx);}
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(stage.isConnected)magUpdateSample();});
 }
 /* Second overlay line: pick white or near-black by the worst-case contrast against the colours actually under the text
    (sampled from the rendered cells, so it follows the pattern, Rotate, Background and the palette). */
 function magUpdateSample(){
   const st=$('.mag-stage'),sm=st&&st.querySelector('.sample small');if(!sm)return;
-  const rg=document.createRange();rg.selectNodeContents(sm);const r=rg.getBoundingClientRect();
+  const tx=sm.querySelector('.txt'),r=(tx||sm).getBoundingClientRect();
   const under=new Set();
   if(r.width){for(let i=0;i<=10;i++){const x=r.left+1+(r.width-2)*i/10;for(const y of[r.top+2,(r.top+r.bottom)/2,r.bottom-2]){const e=document.elementsFromPoint(x,y).find(el=>el.dataset&&el.dataset.c&&st.contains(el));under.add(e?e.dataset.c:MAG_BG[mag.bg]);}}}
   if(!under.size)under.add(MAG_BG[mag.bg]);
