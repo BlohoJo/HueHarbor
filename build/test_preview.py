@@ -8,8 +8,8 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
 TEST_IMG = test_photo()
-SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'text', 'photo']
-SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack']
+SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'sign', 'text', 'photo']
+SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'sign']
 PALS = {2: ['#2f6ea5', '#f2c14e'], 3: ['#1b263b', '#e0e1dd', '#e63946'], 4: ['#F5E1D5', '#DCF0E4', '#F1E2F3', '#7B2CBF'], 5: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'], 6: ['#111111', '#333333', '#555555', '#999999', '#cccccc', '#ffffff']}
 errors, fails = [], []
 def check(cond, msg):
@@ -37,8 +37,8 @@ with sync_playwright() as pw:
     page.locator(f'.pal >> nth={first} >> button:has-text("Preview")').click()
     page.wait_for_selector('.pv-box')
     check(page.locator('.pv-stage svg').count() == 1, 'preview opens with an SVG scene')
-    check(page.locator('.pv-tabs button').count() == 9, 'nine scene tabs')
-    check(page.evaluate("()=>[...document.querySelectorAll('.pv-tabs button')].map(b=>b.dataset.scene)") == SCENES, 'tab order: Packaging right after Products')
+    check(page.locator('.pv-tabs button').count() == 10, 'ten scene tabs')
+    check(page.evaluate("()=>[...document.querySelectorAll('.pv-tabs button')].map(b=>b.dataset.scene)") == SCENES, 'tab order: Packaging right after Products, Signage right after Packaging')
     # every scene renders; screenshot each
     for sid in SCENES:
         page.click(f'.pv-tabs button[data-scene="{sid}"]'); page.wait_for_timeout(120)
@@ -216,6 +216,65 @@ with sync_playwright() as pw:
     page.evaluate(SET_MODE, 'normal'); page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;pv.base='light';pv.shuffle=0;renderPreview();}", PALS[5])
     page.screenshot(path=shot('pv_packaging.png'))
     page.evaluate(SET_MODE, 'exact'); page.evaluate("()=>renderPreview()"); page.screenshot(path=shot('pv_packaging_exact_5.png'))
+    page.evaluate(SET_MODE, 'normal'); page.evaluate("()=>renderPreview()")
+    # Signage: four cards (storefront sign, billboard, menu board, hanging banner), invented copy in British spelling,
+    # every exact hex present, card labels and sign copy readable on what they sit on, Shuffle + Light/Dark change it,
+    # no Products set switch, toolbar fits at 1280 / 900 / 700 px
+    SIGN_LABELS = ['STOREFRONT SIGN', 'BILLBOARD', 'MENU BOARD', 'HANGING BANNER']
+    SIGN_COPY = ['Harbor Café', 'Fresh colour daily', "Today's menu", 'Colour week']
+    # contrast of every <text> against the shape directly beneath its centre (card labels against their card, copy against its sign face)
+    SIGN_CONTRAST = "()=>{const s=document.querySelector('.pv-stage svg');const toHex=c=>c&&c.startsWith('rgb')?'#'+c.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join(''):c;return [...s.querySelectorAll('text')].map(t=>{const r=t.getBoundingClientRect();const under=document.elementsFromPoint(r.left+r.width/2,r.top+r.height/2).find(e=>e!==t&&e.namespaceURI==='http://www.w3.org/2000/svg'&&e.tagName!=='svg'&&e.tagName!=='text'&&e.getAttribute('fill')&&e.getAttribute('fill')!=='none');return [t.textContent,under?contrast(toHex(t.getAttribute('fill')),toHex(under.getAttribute('fill'))).toFixed(2):'none'];});}"
+    page.click('.pv-tabs button[data-scene="sign"]')
+    for n, cols in PALS.items():
+        page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;}", cols)
+        for mode in ('normal', 'precise', 'exact'):
+            page.evaluate(SET_MODE, mode)
+            page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
+            info = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');const all=[...s.querySelectorAll('text')].map(t=>t.textContent);return {labels:all.filter(t=>/^[A-Z][A-Z ]*$/.test(t)),copy:all.filter(t=>!/^[A-Z][A-Z ]*$/.test(t)),cards:s.querySelectorAll('rect[width=\"376\"]').length,scene:document.querySelector('.pv-stage').dataset.scene,set:!!document.querySelector('.pv-set')};}")
+            check(info['labels'] == SIGN_LABELS and info['copy'] == SIGN_COPY and info['cards'] == 4 and info['scene'] == 'sign' and not info['set'], f'Signage {mode} {n}: 2x2 cards with four labelled signs and their copy, no set switch ({info})')
+            check(not any('color' in t.lower() for t in info['copy']) and sum('colour' in t.lower() for t in info['copy']) == 2, f'Signage {mode} {n}: sign copy uses British spelling {info["copy"]}')
+            if mode != 'normal':
+                m = page.evaluate(MISSING); check(not m['scene'] and not m['chips'], f'Signage {mode} {n}: every exact hex in the scene and chips {m if m["scene"] or m["chips"] else ""}')
+            if mode == 'exact':
+                strip = page.evaluate("()=>document.querySelectorAll('.pv-stage svg rect[y=\"452\"]').length")
+                check((strip == n) if n > 5 else strip == 0, f'Signage exact {n}: strip of all colours only for 6+ ({strip})')
+            renders, same_ld = set(), []
+            need = 4.5 if mode == 'normal' else 3
+            low_all = []
+            for k in range(2 * n):
+                page.evaluate("()=>{pv.base='light';renderPreview();}"); a = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML"); renders.add(a)
+                low_all += [x for x in page.evaluate(SIGN_CONTRAST) if x[1] == 'none' or float(x[1]) < 3]
+                page.evaluate("()=>{pv.base='dark';renderPreview();}"); b = page.evaluate("()=>document.querySelector('.pv-stage').innerHTML")
+                low_all += [x for x in page.evaluate(SIGN_CONTRAST) if x[1] == 'none' or float(x[1]) < 3]
+                if a == b: same_ld.append(k)
+                page.click('#pvShuffle')
+            ok_ld = not same_ld or (mode != 'normal' and n % 2 == 1 and same_ld == [n // 2, n + n // 2])
+            check(len(renders) > 1 and ok_ld, f'Signage {mode} {n}: Shuffle gives {len(renders)} distinct variants over {2*n} steps and Light/Dark differ at every step {same_ld}')
+            check(not low_all, f'Signage {mode} {n}: card labels and sign copy reach 3:1 on what they sit on at every shuffle, light and dark {low_all[:6]}')
+            low = [x for x in page.evaluate(SIGN_CONTRAST) if x[1] == 'none' or float(x[1]) < need]
+            check(not low, f'Signage {mode} {n}: card labels and sign copy reach {need}:1 on what they sit on {low}')
+            # every sign part stays inside its card (geometry is the same in every mode; checked once per palette size)
+            if mode == 'normal':
+                out = page.evaluate("()=>{const s=document.querySelector('.pv-stage svg');const cards=[...s.querySelectorAll('rect[width=\"376\"]')].map(r=>r.getBBox());const bad=[];[...s.children].forEach(e=>{if(e.getAttribute('width')==='800'||e.getAttribute('width')==='376')return;const b=e.getBBox();if(!cards.some(c=>b.x>=c.x-2&&b.y>=c.y-2&&b.x+b.width<=c.x+c.width+2&&b.y+b.height<=c.y+c.height+2))bad.push(e.tagName+' '+Math.round(b.x)+','+Math.round(b.y)+' '+Math.round(b.width)+'x'+Math.round(b.height));});return bad;}")
+                check(not out, f'Signage {n}: every shape inside its card {out}')
+    page.evaluate(SET_MODE, 'normal'); page.evaluate("()=>{pv.base='light';pv.shuffle=0;renderPreview();}")
+    check(page.evaluate("()=>document.querySelector('.pv-set')") is None and page.evaluate("()=>!document.querySelector('#pvDownload')&&!document.querySelector('#pvLoad')&&!document.querySelector('.pv-range')"), 'Signage: no Products set switch and no photo-only controls')
+    # Prev / Next and the arrow keys step palettes while the Signage tab stays selected
+    i0 = page.evaluate("()=>pv.idx"); page.click('#pvNext'); i1 = page.evaluate("()=>pv.idx"); page.keyboard.press('ArrowLeft'); i2 = page.evaluate("()=>pv.idx")
+    check(i1 != i0 and i2 == i0 and page.evaluate("()=>document.querySelector('.pv-stage').dataset.scene") == 'sign', f'Signage: Next and ArrowLeft step palettes and keep the tab ({i0}->{i1}->{i2})')
+    for w in (1280, 900, 700):
+        page.set_viewport_size({'width': w, 'height': 860}); page.wait_for_timeout(120)
+        for mode in ('normal', 'exact'):
+            page.evaluate(SET_MODE, mode); page.evaluate("()=>renderPreview()")
+            boxes = page.evaluate("()=>[...document.querySelectorAll('.pv-tools > *')].filter(e=>e.offsetWidth).map(e=>{const r=e.getBoundingClientRect();return [e.className||e.id,r.left,r.top,r.right,r.bottom];})")
+            overlap = [(a[0], b[0]) for i, a in enumerate(boxes) for b in boxes[i+1:] if a[1] < b[3] - 1 and b[1] < a[3] - 1 and a[2] < b[4] - 1 and b[2] < a[4] - 1]
+            inside = page.evaluate("()=>{const box=document.querySelector('.pv-box').getBoundingClientRect();return [...document.querySelectorAll('.pv-tools > *, .pv-tabs button')].filter(e=>e.offsetWidth).every(e=>{const r=e.getBoundingClientRect();return r.left>=box.left-1&&r.right<=box.right+1;});}")
+            check(not overlap and inside, f'Signage {mode} at {w} px: toolbar controls do not overlap and stay inside the dialog ({overlap})')
+    page.set_viewport_size({'width': 1280, 'height': 860}); page.wait_for_timeout(120)
+    page.evaluate(SET_MODE, 'normal'); page.evaluate("c=>{const p=collection().items[pv.idx];p.colors=c;pv.base='light';pv.shuffle=0;renderPreview();}", PALS[5])
+    page.screenshot(path=shot('pv_signage.png'))
+    page.evaluate(SET_MODE, 'exact'); page.evaluate("()=>renderPreview()"); page.screenshot(path=shot('pv_signage_exact_5.png'))
+    page.click('.pv-tabs button[data-scene="pack"]')
     page.evaluate(SET_MODE, 'normal'); page.evaluate("()=>renderPreview()")
     problems = []
     for n, cols in PALS.items():

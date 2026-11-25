@@ -264,3 +264,49 @@ Full run after the review: all 7 suites in Chromium and Firefox exit 0
 (`test_preview.py` 612 checks in Chromium), and the stock Firefox Developer
 Edition smoke test passes 564 checks including the Packaging labels / hex checks and the
 1280 / 900 / 700 px toolbar probe.
+
+## Round 9 — new "Signage" Preview tab
+
+Scope: the tenth Preview tab, `['sign','Signage']`, placed right after
+Packaging: a 2 × 2 grid of labelled cards (STOREFRONT SIGN, BILLBOARD, MENU
+BOARD, HANGING BANNER) with invented copy ("Harbor Café", "Fresh colour
+daily", "Today's menu", "Colour week") drawn by `pvSignSvg`, with `pvSignMap`
+for the normal and Precise layouts and `PV_SIGN_EXACT` 2 / 3 / 4 / 5 for
+exact-count mode (strip for 6+ via `pvExactScene`); `pv.exact.sign`; the new
+checks in `test_preview.py` (incl. per-text contrast against the shape under
+it via `elementsFromPoint`, British-spelling check, Prev/Next + ArrowLeft) and
+`test_ffdev.py`; README (feature bullet, §7 tab list and Signage paragraph) and
+`docs/screenshots/pv_signage.png`.
+
+Two independent reviewer passes (code review + behaviour; visual / contrast)
+were given README.md, the findings document and an adversarial brief. The
+first visual pass wrote its own Playwright probe, which was broken (JS syntax
+errors and a wrong `press()` call); its 110 "defects" were all script
+exceptions and its FAIL was recorded as a tool failure, not a product finding.
+The pass was repeated against a working probe: 216 states (light + dark app
+theme × 2 / 3 / 4 / 5 / 6 / 8-colour palettes × normal / Precise / exact ×
+Light / Dark × shuffle 0–2) with per-`<text>` contrast against the shape
+beneath it, missing-hex, outside-card, strip, set-switch, navigation and
+toolbar probes, plus contact sheets inspected by the reviewer. The code pass
+reviewed every hunk of `git diff dd00619 -- build README.md`.
+Confirmed: all four signs recognisable in every combination, every part
+visible against its card and neighbours, every text ≥ 3 : 1 on what it sits
+on in all 216 states (minimum 3.03 in Precise / exact, 4.38 in normal across
+the 8-colour palette at shuffled steps; ≥ 4.5 : 1 for the test palettes at
+shuffle 0), every exact hex in scene and chips, the strip for 6 and 8 colours,
+every shape inside its card, no `.pv-set` and no photo-only controls on the
+tab, Prev / Next / ← / → step palettes with the tab kept and Esc closes,
+toolbar free of overlap at 1280 / 900 / 700 px (Light / Dark wraps to its own
+row, nothing overlaps), no hard-coded scene indices anywhere (Text is now
+index 8 and Your photo 9; everything goes through `PV_SCENES` or
+`data-scene`), no brand names, British spelling in the UI strings and
+American in README prose, the other nine tabs unchanged, README and
+screenshot accurate, no console errors or page errors.
+
+Findings: no defects. Verdict: PASS.
+
+Full run after the review: all 7 suites in Chromium and Firefox exit 0
+(`test_preview.py` 747 checks in Chromium, 747 in Firefox), and the stock
+Firefox Developer Edition smoke test passes 664 checks including the Signage
+labels / copy / hex checks and the 1280 / 900 / 700 px toolbar probe. Build:
+`index.html` == `palette_picker.html`, 1,311,518 bytes.

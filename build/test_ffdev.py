@@ -20,7 +20,7 @@ URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
 OUT = os.path.join(ROOT, 'shots', 'ffdev'); os.makedirs(OUT, exist_ok=True)
 FFDEV_BIN = os.environ.get('FFDEV_BIN', 'firefox'); GECKODRIVER = os.environ.get('GECKODRIVER', 'geckodriver')
 PALS = {2: ['#2f6ea5', '#f2c14e'], 3: ['#1b263b', '#e0e1dd', '#e63946'], 4: ['#F5E1D5', '#DCF0E4', '#F1E2F3', '#7B2CBF'], 5: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51']}
-SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack']
+SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'sign']
 fails = []
 def check(c, m):
     print(('ok   ' if c else 'FAIL ') + m)
@@ -55,7 +55,7 @@ first = js("return collection().items.findIndex(p=>p.colors.length>=4)")
 btns = drv.find_elements(By.CSS_SELECTOR, '.pal')[first].find_elements(By.XPATH, ".//button[contains(.,'Preview')]")
 btns[0].click(); time.sleep(0.3)
 check(len(drv.find_elements(By.CSS_SELECTOR, '.pv-box')) == 1, 'preview dialog opens')
-check(len(drv.find_elements(By.CSS_SELECTOR, '.pv-tabs button')) == 9, 'nine scene tabs incl. Products, Packaging and Text')
+check(len(drv.find_elements(By.CSS_SELECTOR, '.pv-tabs button')) == 10, 'ten scene tabs incl. Products, Packaging, Signage and Text')
 def tab(s): drv.find_element(By.CSS_SELECTOR, f'.pv-tabs button[data-scene="{s}"]').click(); time.sleep(0.15)
 def shuffle(): drv.find_element(By.CSS_SELECTOR, '#pvShuffle').click(); time.sleep(0.05)
 def base(b): drv.find_element(By.CSS_SELECTOR, f'.pv-tools .seg button[data-base="{b}"]').click(); time.sleep(0.05)
@@ -115,6 +115,9 @@ for mode in ('precise', 'exact'):
                     if sid == 'pack':
                         labs = js("return [...document.querySelectorAll('.pv-stage svg text')].map(t=>t.textContent).filter(t=>/^[A-Z][A-Z ]*$/.test(t))")
                         check(labs == ['CEREAL BOX', 'SODA CAN', 'SHOPPING BAG', 'LABEL JAR'] and js("return !document.querySelector('.pv-set')"), f'{mode} pack {n} {b} shuffle{k}: four labelled packages, no set switch {labs}')
+                    if sid == 'sign':
+                        labs = js("return [...document.querySelectorAll('.pv-stage svg text')].map(t=>t.textContent)")
+                        check(labs == ['STOREFRONT SIGN', 'Harbor Café', 'BILLBOARD', 'Fresh colour daily', 'MENU BOARD', "Today's menu", 'HANGING BANNER', 'Colour week'] and js("return !document.querySelector('.pv-set')"), f'{mode} sign {n} {b} shuffle{k}: four labelled signs with their copy, no set switch {labs}')
         if mode == 'exact' and n == 4:
             tab('web'); base('light'); drv.save_screenshot(os.path.join(OUT, f'ffdev_exact_{n}.png'))
 js("collection().items[pv.idx].colors=arguments[0];pv.precise=false;for(const k in pv.exact)pv.exact[k]=false;pv.shuffle=0;renderPreview();", orig)
@@ -139,6 +142,14 @@ for w in (1280, 900, 700):
     check(ov == [], f'Packaging: toolbar controls do not overlap at {w} px {ov}')
 drv.set_window_size(1280, 860); time.sleep(0.2)
 drv.save_screenshot(os.path.join(OUT, 'ffdev_packaging.png'))
+# Signage tab: four cards, no set switch, toolbar fits at 1280 / 900 / 700 px
+tab('sign'); check(js("const s=document.querySelector('.pv-stage svg');return s&&s.querySelectorAll('rect[width=\"376\"]').length===4&&!document.querySelector('.pv-set')&&document.querySelector('.pv-stage').dataset.scene==='sign'&&s.textContent.includes('Harbor Café')"), 'Signage: four cards, Harbor Café copy, no Products set switch')
+for w in (1280, 900, 700):
+    drv.set_window_size(w, 860); time.sleep(0.2)
+    ov = js("const b=[...document.querySelectorAll('.pv-tools > *')].filter(e=>e.offsetWidth).map(e=>{const r=e.getBoundingClientRect();return [e.className||e.id,r.left,r.top,r.right,r.bottom];});const o=[];for(let i=0;i<b.length;i++)for(let j=i+1;j<b.length;j++){const a=b[i],c=b[j];if(a[1]<c[3]-1&&c[1]<a[3]-1&&a[2]<c[4]-1&&c[2]<a[4]-1)o.push([a[0],c[0]]);}return o;")
+    check(ov == [], f'Signage: toolbar controls do not overlap at {w} px {ov}')
+drv.set_window_size(1280, 860); time.sleep(0.2)
+drv.save_screenshot(os.path.join(OUT, 'ffdev_signage.png'))
 tab('product')
 # Precise toggle disabled on photo
 tab('photo'); check(js("const e=document.querySelector('#pvPrecise');return !e||e.disabled||getComputedStyle(e.closest('label')).display==='none'"), 'Precise control unavailable on Your photo')

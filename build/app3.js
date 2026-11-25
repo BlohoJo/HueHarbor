@@ -3,10 +3,10 @@
    All scenes are original inline SVG drawn here; the photo scene is a canvas.
    ===================================================================== */
 
-const PV_SCENES=[['web','Website'],['poster','Poster'],['room','Interior'],['outfit','Outfit'],['dash','Dashboard'],['product','Products'],['pack','Packaging'],['text','Text'],['photo','Your photo']];
+const PV_SCENES=[['web','Website'],['poster','Poster'],['room','Interior'],['outfit','Outfit'],['dash','Dashboard'],['product','Products'],['pack','Packaging'],['sign','Signage'],['text','Text'],['photo','Your photo']];
 const PV_EFFECTS=[['gradient','Gradient map'],['poster','Posterize'],['duo','Duotone']];
 let pv={idx:0,scene:0,shuffle:0,base:null,effect:'gradient',duoA:0,duoB:1,intensity:1,src:null,fullSrc:null,full:null,srcName:'sample',busy:false,raf:0,
-  precise:false,exact:{web:true,poster:true,room:true,outfit:true,dash:true,product:true,pack:true,text:true},productSet:0,font:'system',editText:false,txt:null};
+  precise:false,exact:{web:true,poster:true,room:true,outfit:true,dash:true,product:true,pack:true,sign:true,text:true},productSet:0,font:'system',editText:false,txt:null};
 
 /* ---------- colour helpers ---------- */
 function pvShift(hex,dL,cMul){const[l,c,hh]=hexToOklch(hex);return oklchToHex(clamp(l+dL,0,1),c*(cMul===undefined?1:cMul),hh);}
@@ -327,6 +327,72 @@ const PV_PACK_EXACT={
     shbag:{body:P,side:T,rope:T,tag:S,logo:A},jar:{glass:A,lid:T,label:S,accent:P,shine:S}};}
 };
 
+/* ---------- Signage scene: four flat signs on the same 2 × 2 grid of cards ----------
+   Same scheme as Products and Packaging: one drawing routine, geometry identical in every mode, only the colour map differs.
+   C = {bg, card, stroke, label, store, bill, menu, banner} (see pvSignMap / PV_SIGN_EXACT). Invented names only ("Harbor Café") — no brands. */
+const PV_SIGN_CARDS=[[16,16,'STOREFRONT SIGN'],[408,16,'BILLBOARD'],[16,258,'MENU BOARD'],[408,258,'HANGING BANNER']];
+function pvSignSvg(C){
+  const card=(x,y)=>`<rect x="${x}" y="${y}" width="376" height="226" rx="16" fill="${C.card||'none'}"${C.stroke?` stroke="${C.stroke}" stroke-width="2"`:''}/>`;
+  const label=(x,y,t)=>`<text x="${x+18}" y="${y+30}" font-size="12" font-weight="800" letter-spacing="2" fill="${C.label}">${t}</text>`;
+  const store=(cx,cy)=>{const c=C.store;
+    return`<rect x="${cx-150}" y="${cy-60}" width="10" height="150" fill="${c.post}"/><rect x="${cx+140}" y="${cy-60}" width="10" height="150" fill="${c.post}"/>
+<rect x="${cx-160}" y="${cy-78}" width="320" height="56" rx="6" fill="${c.fascia}"/>
+<text x="${cx}" y="${cy-41}" font-size="26" font-weight="800" text-anchor="middle" fill="${c.text}">Harbor Café</text>
+<rect x="${cx-160}" y="${cy-24}" width="320" height="5" fill="${c.trim}"/>
+${[0,1,2,3,4,5,6,7].map(i=>`<rect x="${cx-160+i*40}" y="${cy-19}" width="40" height="40" fill="${i%2?c.awningB:c.awningA}"/><circle cx="${cx-140+i*40}" cy="${cy+21}" r="20" fill="${i%2?c.awningB:c.awningA}"/>`).join('')}
+<rect x="${cx-120}" y="${cy+52}" width="240" height="38" rx="4" fill="${c.trim}"/><rect x="${cx-110}" y="${cy+60}" width="100" height="22" rx="3" fill="${c.fascia}"/><rect x="${cx+10}" y="${cy+60}" width="100" height="22" rx="3" fill="${c.fascia}"/>`;};
+  const bill=(cx,cy)=>{const c=C.bill;
+    return`<rect x="${cx-20}" y="${cy+40}" width="12" height="52" fill="${c.leg}"/><rect x="${cx+8}" y="${cy+40}" width="12" height="52" fill="${c.leg}"/>
+<rect x="${cx-100}" y="${cy-86}" width="200" height="6" rx="3" fill="${c.frame}"/>
+<rect x="${cx-160}" y="${cy-80}" width="320" height="124" rx="6" fill="${c.frame}"/>
+<rect x="${cx-152}" y="${cy-72}" width="304" height="108" fill="${c.panel}"/>
+<circle cx="${cx-112}" cy="${cy-18}" r="24" fill="${c.logo}"/>
+<text x="${cx-76}" y="${cy-20}" font-size="22" font-weight="800" fill="${c.text}">Fresh colour daily</text>
+<rect x="${cx-76}" y="${cy-4}" width="150" height="8" rx="4" fill="${c.sub}"/><rect x="${cx-76}" y="${cy+12}" width="110" height="8" rx="4" fill="${c.sub}"/>`;};
+  const menu=(cx,cy)=>{const c=C.menu;
+    return`<rect x="${cx-100}" y="${cy-86}" width="200" height="176" rx="8" fill="${c.frame}"/>
+<rect x="${cx-90}" y="${cy-76}" width="180" height="156" fill="${c.board}"/>
+<text x="${cx}" y="${cy-44}" font-size="20" font-weight="800" text-anchor="middle" fill="${c.head}">Today's menu</text>
+<rect x="${cx-70}" y="${cy-32}" width="140" height="3" fill="${c.line}"/>
+${[0,1,2,3].map(i=>`<rect x="${cx-70}" y="${cy-14+i*26}" width="${[84,66,92,72][i]}" height="8" rx="4" fill="${c.line}"/><circle cx="${cx+60}" cy="${cy-10+i*26}" r="6" fill="${c.price}"/>`).join('')}`;};
+  const banner=(cx,cy)=>{const c=C.banner;
+    return`<rect x="${cx-120}" y="${cy-86}" width="240" height="8" rx="4" fill="${c.pole}"/><circle cx="${cx-120}" cy="${cy-82}" r="7" fill="${c.pole}"/><circle cx="${cx+120}" cy="${cy-82}" r="7" fill="${c.pole}"/>
+<rect x="${cx-52}" y="${cy-80}" width="4" height="26" fill="${c.cord}"/><rect x="${cx+48}" y="${cy-80}" width="4" height="26" fill="${c.cord}"/>
+<path d="M${cx-70} ${cy-56} h140 v124 l-70 -24 l-70 24 z" fill="${c.cloth}"/>
+<rect x="${cx-70}" y="${cy-56}" width="140" height="8" fill="${c.fringe}"/>
+<circle cx="${cx}" cy="${cy-18}" r="20" fill="${c.medal}"/>
+<text x="${cx}" y="${cy+28}" font-size="18" font-weight="800" text-anchor="middle" fill="${c.text}">Colour week</text>`;};
+  const draw=[store,bill,menu,banner],dy=[124,124,124,124];
+  return pvSvg(`<rect width="800" height="500" fill="${C.bg}"/>`+PV_SIGN_CARDS.map(([x,y,t],i)=>card(x,y)+label(x,y,t)+draw[i](x+188,y+dy[i])).join(''));
+}
+/* Colour map for the normal (and Precise-with-derived-roles) layout; sign copy is always set in a colour that reads on its face */
+function pvSignMap(R){
+  const vis=(...c)=>c.find(x=>contrast(x,R.surface)>=1.8)||c.sort((a,b)=>contrast(b,R.surface)-contrast(a,R.surface))[0];
+  const body=vis(R.tertiary,R.secondary,R.primary,R.accent),band=vis(R.secondary,R.tertiary,R.accent,R.primary);
+  const on=c=>R.exact.length?pvOnExact(c,R,false):textOn(c);
+  return{bg:R.bg,card:R.surface,stroke:null,label:R.exact.length?pvOnExact(R.surface,R,false):contrast(R.muted,R.surface)>=4.5?R.muted:R.text,
+    store:{fascia:R.primary,text:R.onPrimary,trim:R.text,post:R.text,awningA:R.accent,awningB:R.surface},
+    bill:{panel:body,frame:R.text,text:on(body),sub:on(body),logo:band===body?R.primary:band,leg:R.text},
+    menu:{board:R.text,frame:band,head:on(R.text),line:on(R.text),price:R.accent},
+    banner:{pole:R.text,cord:R.text,cloth:R.accent,text:R.onAccent,fringe:R.primary,medal:R.surface}};
+}
+/* Exact-count colour maps: 2 = background + text; 3 = + primary; 4 = + surface (cards); 5 = + accent.
+   Copy sits only on the background, text or surface colour so it always reads (the same pairs the card labels use). */
+const PV_SIGN_EXACT={
+  2(X){const{bg,text:T}=X;return{bg,card:null,stroke:T,label:T,
+    store:{fascia:T,text:bg,trim:T,post:T,awningA:T,awningB:bg},bill:{panel:bg,frame:T,text:T,sub:T,logo:T,leg:T},
+    menu:{board:T,frame:T,head:bg,line:bg,price:bg},banner:{pole:T,cord:T,cloth:T,text:bg,fringe:bg,medal:bg}};},
+  3(X){const{bg,text:T,primary:P}=X;return{bg,card:null,stroke:T,label:T,
+    store:{fascia:T,text:bg,trim:T,post:T,awningA:P,awningB:bg},bill:{panel:bg,frame:T,text:T,sub:P,logo:P,leg:T},
+    menu:{board:T,frame:P,head:bg,line:bg,price:P},banner:{pole:T,cord:T,cloth:bg,text:T,fringe:P,medal:P}};},
+  4(X){const{bg,text:T,primary:P,surface:S}=X;const oS=X.on(S);return{bg,card:S,stroke:null,label:oS,
+    store:{fascia:T,text:bg,trim:T,post:T,awningA:P,awningB:S},bill:{panel:bg,frame:T,text:T,sub:P,logo:P,leg:T},
+    menu:{board:T,frame:P,head:bg,line:bg,price:P},banner:{pole:T,cord:T,cloth:bg,text:T,fringe:P,medal:P}};},
+  5(X){const{bg,text:T,primary:P,surface:S,accent:A}=X;const oS=X.on(S);return{bg,card:S,stroke:null,label:oS,
+    store:{fascia:T,text:bg,trim:T,post:T,awningA:A,awningB:P},bill:{panel:bg,frame:T,text:T,sub:P,logo:A,leg:T},
+    menu:{board:T,frame:P,head:bg,line:bg,price:A},banner:{pole:T,cord:T,cloth:bg,text:T,fringe:P,medal:A}};}
+};
+
 const PV_SCENE_FN={
   web(R){
     const card=(x,c,t)=>`<rect x="${x}" y="362" width="208" height="112" rx="14" fill="${R.surface}"/><circle cx="${x+30}" cy="392" r="15" fill="${c}"/><text x="${x+56}" y="397" font-size="14" font-weight="700" fill="${R.text}">${t}</text><rect x="${x+20}" y="418" width="150" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/><rect x="${x+20}" y="433" width="120" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/><rect x="${x+20}" y="448" width="135" height="7" rx="3.5" fill="${R.muted}" opacity=".55"/>`;
@@ -428,7 +494,8 @@ ${kpi(200,'VISITORS','48.2k','+12%',R.accent)}${kpi(390,'REVENUE','$96.4k','+8%'
 ${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${R.surface}" stroke="${R.primary}" stroke-width="2.5"/>`).join('')}`);
   },
   product(R){return pvProductSvg(pvProductMap(R));},
-  pack(R){return pvPackSvg(pvPackMap(R));}
+  pack(R){return pvPackSvg(pvPackMap(R));},
+  sign(R){return pvSignSvg(pvSignMap(R));}
 };
 
 /* ---------- exact-count scenes (Precise mode + "Use exact number of colours") ----------
@@ -673,7 +740,8 @@ ${kpi(200,'VISITORS','48.2k','+12%',A,onA)}${kpi(390,'REVENUE','$96.4k','+8%',P,
 <polyline points="${pts}" fill="none" stroke="${P}" stroke-width="3" stroke-linejoin="round"/><polyline points="${pts2}" fill="none" stroke="${A}" stroke-width="2.5" stroke-dasharray="6 5"/>`);}
   },
   product:{2:X=>pvProductSvg(PV_PRODUCT_EXACT[2](X)),3:X=>pvProductSvg(PV_PRODUCT_EXACT[3](X)),4:X=>pvProductSvg(PV_PRODUCT_EXACT[4](X)),5:X=>pvProductSvg(PV_PRODUCT_EXACT[5](X))},
-  pack:{2:X=>pvPackSvg(PV_PACK_EXACT[2](X)),3:X=>pvPackSvg(PV_PACK_EXACT[3](X)),4:X=>pvPackSvg(PV_PACK_EXACT[4](X)),5:X=>pvPackSvg(PV_PACK_EXACT[5](X))}
+  pack:{2:X=>pvPackSvg(PV_PACK_EXACT[2](X)),3:X=>pvPackSvg(PV_PACK_EXACT[3](X)),4:X=>pvPackSvg(PV_PACK_EXACT[4](X)),5:X=>pvPackSvg(PV_PACK_EXACT[5](X))},
+  sign:{2:X=>pvSignSvg(PV_SIGN_EXACT[2](X)),3:X=>pvSignSvg(PV_SIGN_EXACT[3](X)),4:X=>pvSignSvg(PV_SIGN_EXACT[4](X)),5:X=>pvSignSvg(PV_SIGN_EXACT[5](X))}
 };
 /* Draw an exact-count scene; palettes with more than five colours get the five-colour layout plus a strip of all colours */
 function pvExactScene(sid,X){
