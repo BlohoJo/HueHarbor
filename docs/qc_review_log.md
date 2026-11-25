@@ -231,3 +231,36 @@ Full run after the review: all 7 suites in Chromium and Firefox exit 0
 (`test_preview.py` 507 checks in Chromium, all three sets covered), and the
 stock Firefox Developer Edition smoke test passes 464 checks including the
 Home hex / label checks and the three-state switch. Verdict: PASS.
+
+## Round 8 — new "Packaging" Preview tab
+
+Scope: the ninth Preview tab, `['pack','Packaging']`, placed right after
+Products: a 2 × 2 grid of labelled cards (CEREAL BOX, SODA CAN, SHOPPING BAG,
+LABEL JAR) drawn by `pvPackSvg`, with `pvPackMap` for the normal and Precise
+layouts and `PV_PACK_EXACT` 2 / 3 / 4 / 5 for exact-count mode (strip for 6+
+via `pvExactScene`); `pv.exact.pack`; the new checks in `test_preview.py` and
+`test_ffdev.py`; README (feature bullet, §7 tab list and Packaging paragraph)
+and `docs/screenshots/pv_packaging.png`.
+
+Two independent reviewer passes (code review + behaviour; visual / contrast
+probe) were given README.md and the findings document and an adversarial
+brief. They reviewed every hunk of `git diff 39028e2 -- build README.md`,
+re-ran `test_preview.py` in Chromium and Firefox (exit 0 both), and probed
+Packaging for 2 / 3 / 4 / 5 / 6 / 8-colour palettes × normal / Precise /
+exact × Light / Dark × shuffle steps 0–2 plus the dark app theme (contact
+sheets inspected). Confirmed: all four packages recognisable in every
+combination, every part visible against its card and its neighbours, labels
+at ≥ 4.5 : 1 (normal) / ≥ 3 : 1 (Precise, exact), every exact hex in scene and
+chips, the strip for 6+ colours, every shape inside its card, no `.pv-set`
+and no photo-only controls on the tab, toolbar free of overlap at 1280 / 900
+/ 700 px, no hard-coded scene indices anywhere in `build/*.js` or the tests
+(Text is now index 7 and Your photo 8; everything goes through `PV_SCENES`
+or `data-scene`), Esc / ← / → unchanged, state in memory only, the other
+eight tabs unchanged, README and screenshot accurate.
+
+Findings: no defects. Verdict: PASS.
+
+Full run after the review: all 7 suites in Chromium and Firefox exit 0
+(`test_preview.py` 612 checks in Chromium), and the stock Firefox Developer
+Edition smoke test passes 564 checks including the Packaging labels / hex checks and the
+1280 / 900 / 700 px toolbar probe.
