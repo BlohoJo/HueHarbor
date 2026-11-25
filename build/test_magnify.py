@@ -16,7 +16,10 @@ def check(cond, msg):
 OVERLAY = """()=>{const st=document.querySelector('.mag-stage'),sm=st.querySelector('.sample small'),l1=st.querySelector('.sample .light'),l2=st.querySelector('.sample .dark');
  const rg=document.createRange();rg.selectNodeContents(sm);const r=rg.getBoundingClientRect();
  const cells=[...st.querySelectorAll('[data-c]')].map(e=>e.getBoundingClientRect()).filter(b=>b.width);
- const inside=(x,y)=>cells.some(b=>x>=b.left-.5&&x<=b.right+.5&&y>=b.top-.5&&y<=b.bottom+.5);
+ // "inside" = within the pattern's footprint (the union box of the cells: the gaps between Panels show the chosen
+ // Background by design and may sit under the text, which the contrast logic handles); never over the backing margin
+ const fp={left:Math.min(...cells.map(b=>b.left)),right:Math.max(...cells.map(b=>b.right)),top:Math.min(...cells.map(b=>b.top)),bottom:Math.max(...cells.map(b=>b.bottom))};
+ const inside=(x,y)=>x>=fp.left-.5&&x<=fp.right+.5&&y>=fp.top-.5&&y<=fp.bottom+.5;
  const boxes=[r,l1.getBoundingClientRect(),l2.getBoundingClientRect()];
  const pts=boxes.flatMap(b=>[[b.left,b.top],[b.right,b.top],[b.left,b.bottom],[b.right,b.bottom]]);
  const toHex=c=>'#'+c.match(/\\d+/g).slice(0,3).map(x=>(+x).toString(16).padStart(2,'0')).join('');
@@ -24,7 +27,9 @@ OVERLAY = """()=>{const st=document.querySelector('.mag-stage'),sm=st.querySelec
  const under=new Set();for(let i=0;i<=10;i++){const x=r.left+1+(r.width-2)*i/10;for(const y of[r.top+2,(r.top+r.bottom)/2,r.bottom-2]){const e=document.elementsFromPoint(x,y).find(el=>el.dataset&&el.dataset.c&&st.contains(el));under.add(e?e.dataset.c:MAG_BG[mag.bg]);}}
  const col=toHex(getComputedStyle(sm).color);const worst=Math.min(...[...under].map(u=>contrast(col,u)));
  const other=col==='#ffffff'?'#111111':'#ffffff';const worstOther=Math.min(...[...under].map(u=>contrast(other,u)));
- return {inside:pts.every(p=>inside(p[0],p[1])),color:col,worst,worstOther,under:[...under],cells:cells.length,stageBottom:st.getBoundingClientRect().bottom,textBottom:r.bottom};}"""
+ const rd=b=>[Math.round(b.left),Math.round(b.top),Math.round(b.right),Math.round(b.bottom)];
+ return {inside:pts.every(p=>inside(p[0],p[1])),color:col,worst,worstOther,under:[...under],cells:cells.length,stageBottom:st.getBoundingClientRect().bottom,textBottom:r.bottom,
+  diag:{font:getComputedStyle(sm).fontFamily.split(',')[0],line2:rd(r),line1:[rd(l1.getBoundingClientRect()),rd(l2.getBoundingClientRect())],footprint:rd(fp),cellBoxes:[...st.querySelectorAll('[data-c]')].filter(e=>e.getBoundingClientRect().width).map(e=>[e.dataset.c,...rd(e.getBoundingClientRect())]),outside:pts.filter(p=>!inside(p[0],p[1])).map(p=>[Math.round(p[0]),Math.round(p[1])])}};}"""
 
 with sync_playwright() as pw:
     print('browser', BROWSER)
@@ -45,7 +50,8 @@ with sync_playwright() as pw:
     page.evaluate("()=>{const p=collection().items[mag.idx];p.colors=['#25335E','#101040','#477877'];p.name='Classic · template #909';mag.pattern=0;mag.bg=0;mag.rot=0;renderMagnify();}")
     o = page.evaluate(OVERLAY)
     check(o['inside'], f'Panels: both overlay lines lie inside the coloured panels (text bottom {o["textBottom"]:.0f} < stage bottom {o["stageBottom"]:.0f})')
-    check(o['color'] == '#ffffff' and o['worst'] >= 4.5, f'Panels on dark navy: line 2 is white with {o["worst"]:.2f}:1 worst-case contrast')
+    ok_navy = o['color'] == '#ffffff' and o['worst'] >= 4.5
+    check(ok_navy, f'Panels on dark navy: line 2 is white with {o["worst"]:.2f}:1 worst-case contrast' + ('' if ok_navy else f' | under {o["under"]} diag {o["diag"]}'))
     page.screenshot(path=shot('mag_panels_dark.png'))
     # a light palette -> dark text
     page.evaluate("()=>{const p=collection().items[mag.idx];p.colors=['#F5E1D5','#DCF0E4','#F1E2F3'];renderMagnify();}")
@@ -63,7 +69,7 @@ with sync_playwright() as pw:
             for rot in range(4):
                 page.evaluate("a=>{mag.pattern=a[0];mag.bg=a[1];mag.rot=a[2];renderMagnify();}", [pi, bi, rot])
                 o = page.evaluate(OVERLAY)
-                if not o['inside'] or o['worst'] + 1e-9 < o['worstOther']: bad.append((pats[pi], bi, rot, o['color'], round(o['worst'], 2), round(o['worstOther'], 2), o['inside']))
+                if not o['inside'] or o['worst'] + 1e-9 < o['worstOther']: bad.append((pats[pi], bi, rot, o['color'], round(o['worst'], 2), round(o['worstOther'], 2), o['inside'], o['under'], o['diag'] if len(bad) < 2 else '…'))
     check(not bad, f'all patterns x backgrounds x rotations: overlay inside the pattern and line 2 uses the better colour {bad[:6]}')
     # Rotate / Background / Prev / Next buttons re-evaluate the colour (compare against a fresh computation)
     page.evaluate("()=>{mag.pattern=2;mag.bg=0;mag.rot=0;renderMagnify();}")

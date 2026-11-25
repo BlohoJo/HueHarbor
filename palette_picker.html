@@ -1094,6 +1094,9 @@ function renderMagnify(){
     h('div',{class:'row',style:'margin-top:10px;gap:6px'},...cols.map(c=>h('span',{class:'contrast-note',style:'font-family:var(--mono)'},h('span',{style:'display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid var(--border);background:'+c}),c.toUpperCase())))
   );
   openModal(box);magUpdateSample();
+  /* re-sample once layout and system fonts have settled (first open on some platforms lays out the text a frame later) */
+  requestAnimationFrame(()=>{if($('.mag-stage'))magUpdateSample();});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if($('.mag-stage'))magUpdateSample();});
 }
 /* Second overlay line: pick white or near-black by the worst-case contrast against the colours actually under the text
    (sampled from the rendered cells, so it follows the pattern, Rotate, Background and the palette). */
