@@ -23,7 +23,8 @@
 .PARAMETER Browsers   Comma-separated subset of firefox,msedge,ffdev (default: all three).
 .PARAMETER Only       Run just one suite, e.g. test_preview.py (ffdev ignores this).
 .PARAMETER FFDevBin   Path to Firefox Developer Edition firefox.exe (a PortableApps FirefoxPortable.exe is resolved to the firefox.exe it wraps).
-.PARAMETER SkipInstall  Skip pip install / playwright install (after the first successful run).
+.PARAMETER SkipInstall  Skip pip install / playwright install (after the first successful run). Ignored when the venv is
+                        missing the packages, e.g. in a freshly unzipped copy of the repo.
 .PARAMETER Geckodriver  Optional geckodriver.exe path; by default Selenium Manager fetches one.
 #>
 [CmdletBinding()]
@@ -75,6 +76,11 @@ if (-not (Test-Path $VenvPy)) {
 }
 
 $NeedPw = ($Browsers -contains 'firefox') -or ($Browsers -contains 'msedge')
+if ($SkipInstall) {
+  # The venv lives inside the repo (build\.venv-win): a freshly unzipped copy has an empty one, so -SkipInstall must not skip then
+  & $VenvPy -c 'import playwright, selenium, PIL, numpy' 2>$null
+  if ($LASTEXITCODE -ne 0) { Say '-SkipInstall given but the venv has no playwright/selenium yet (new checkout?): installing anyway'; $SkipInstall = $false }
+}
 if (-not $SkipInstall) {
   Say 'Installing/updating playwright, selenium, pillow, numpy in the venv ...'
   & $VenvPy -m pip install --quiet --upgrade pip playwright selenium pillow numpy
