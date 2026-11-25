@@ -1,11 +1,11 @@
 """Background-colour control verification (headless Chromium)."""
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot
+from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot, file_url
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
+URL = file_url()
 QUICK = ['#ffffff', '#d4d0c8', '#bfbfbf', '#808080', '#000000']
 
 

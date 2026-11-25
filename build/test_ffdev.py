@@ -7,6 +7,8 @@ Setup (Linux):
   tar xf ffdev.tar.xz; download geckodriver from https://github.com/mozilla/geckodriver/releases; pip install selenium
 Run:
   FFDEV_BIN=/path/firefox/firefox GECKODRIVER=/path/geckodriver python3 build/test_ffdev.py
+  (GECKODRIVER may be omitted: Selenium Manager then downloads a matching geckodriver automatically.
+   On Windows, FFDEV_BIN defaults to "C:\Program Files\Firefox Developer Edition\firefox.exe" when it exists.)
 Screenshots go to shots/ffdev/. Exit code 1 on any failed check or page error."""
 import os, sys, time, json
 from selenium import webdriver
@@ -16,9 +18,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
+from pathlib import Path
+URL = Path(ROOT, 'palette_picker.html').resolve().as_uri()
 OUT = os.path.join(ROOT, 'shots', 'ffdev'); os.makedirs(OUT, exist_ok=True)
-FFDEV_BIN = os.environ.get('FFDEV_BIN', 'firefox'); GECKODRIVER = os.environ.get('GECKODRIVER', 'geckodriver')
+_WIN_FFDEV = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
+FFDEV_BIN = os.environ.get('FFDEV_BIN') or (_WIN_FFDEV if os.name == 'nt' and os.path.exists(_WIN_FFDEV) else 'firefox')
+GECKODRIVER = os.environ.get('GECKODRIVER')  # None -> Selenium Manager resolves/downloads geckodriver
 PALS = {2: ['#2f6ea5', '#f2c14e'], 3: ['#1b263b', '#e0e1dd', '#e63946'], 4: ['#F5E1D5', '#DCF0E4', '#F1E2F3', '#7B2CBF'], 5: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51']}
 SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'sign']
 fails = []
@@ -32,7 +37,10 @@ opts.add_argument('-headless')
 for k, v in {'dom.events.testing.asyncClipboard': True, 'dom.events.asyncClipboard.readText': True,
              'dom.events.asyncClipboard.clipboardItem': True, 'devtools.console.stdout.content': True}.items():
     opts.set_preference(k, v)
-drv = webdriver.Firefox(service=Service(GECKODRIVER, log_output=os.path.join(OUT, 'geckodriver.log')), options=opts)
+_svc_kw = {'log_output': os.path.join(OUT, 'geckodriver.log')}
+if GECKODRIVER: _svc_kw['executable_path'] = GECKODRIVER
+print('FFDEV_BIN', FFDEV_BIN, '| geckodriver:', GECKODRIVER or '(Selenium Manager)')
+drv = webdriver.Firefox(service=Service(**_svc_kw), options=opts)
 drv.set_window_size(1280, 860)
 ua = drv.execute_script('return navigator.userAgent')
 print('UA', ua)

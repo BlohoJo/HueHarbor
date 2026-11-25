@@ -323,7 +323,8 @@ build/
   fonts/              36 WOFF2 Latin subsets for the Text preview + manifest.json (embedded as base64 by assemble.py)
   assemble.py         concatenates the parts above into palette_picker.html and index.html
   check_site.py       checks index.html == palette_picker.html and that .nojekyll exists
-  browsers.py         shared Playwright browser selection for the tests
+  browsers.py         shared Playwright browser selection for the tests (chromium, firefox, msedge)
+  run_tests_windows.ps1  Windows runner: all suites in Playwright Firefox + installed Edge + Developer Edition, report in shots\windows_report.txt
   test.py             main functional tests
   test_export.py      .ase / .gpl file-format checks
   test_bg.py          page-background control
@@ -362,6 +363,18 @@ If your Playwright browsers are installed in a custom location, point Playwright
 ```bash
 export PLAYWRIGHT_BROWSERS_PATH=/home/ubuntu/.pw-browsers
 ```
+
+`BROWSER=msedge` runs a suite in your installed Microsoft Edge (Playwright's `msedge` channel, no download). Screenshots go to `shots/`, `shots/firefox/` or `shots/msedge/` depending on the browser.
+
+### Running the tests on Windows
+
+`build\run_tests_windows.ps1` runs everything against real Windows browsers and writes a report you can share. It needs Python 3 from [python.org](https://www.python.org/downloads/) (with the `py` launcher, the installer's default), Microsoft Edge, and optionally Firefox Developer Edition. From the repository folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build\run_tests_windows.ps1
+```
+
+The first run creates a private virtual environment in `build\.venv-win` (ignored by git), installs Playwright, Selenium, Pillow and NumPy into it, and downloads Playwright's Firefox and Chromium builds once; later runs can add `-SkipInstall`. It then runs the seven suites in Playwright Firefox and in your installed Edge, and the Developer Edition smoke run (`test_ffdev.py`) in your real Firefox Developer Edition via Selenium (Selenium Manager fetches a matching geckodriver automatically). A failing suite does not stop the run. The summary table, browser versions and the last 40 lines of any failing suite end up in `shots\windows_report.txt`; full logs are in `shots\windows_logs\`. Useful switches: `-Browsers firefox,msedge,ffdev` to pick a subset, `-Only test_preview.py` for one suite, `-FFDevBin "C:\path\to\firefox.exe"` if Developer Edition is not in `C:\Program Files\Firefox Developer Edition`.
 
 Suites: `test.py`, `test_export.py`, `test_bg.py`, `test_ff_probe.py`, `test_preview.py`, `test_magnify.py`, `test_perf.py`. Each prints `ERRORS []` (and `FAILS []` where applicable) and exits with status 0 when it passes. Screenshots and exported files are written to `shots/` (ignored by git); generated test images go to `~/.tmp/hueharbor-fixtures/` (override with `HH_FIXTURES=/some/dir`).
 

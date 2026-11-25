@@ -2,11 +2,11 @@
 and the contrast-aware colour of its second line, and the old 'Diagonal' -> 'Vertical bars' mapping."""
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from browsers import BROWSER, launch_kwargs, context_kwargs, browser_type, shot
+from browsers import BROWSER, launch_kwargs, context_kwargs, browser_type, shot, file_url
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
+URL = file_url()
 errors, fails = [], []
 def check(cond, msg):
     print(('ok   ' if cond else 'FAIL ') + msg)

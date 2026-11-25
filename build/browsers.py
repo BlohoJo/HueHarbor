@@ -1,17 +1,34 @@
 """Shared browser selection for the test scripts.
 
 Usage:  BROWSER=firefox python3 build/test.py      (default: chromium)
+        BROWSER=msedge  python3 build/test.py      (installed Microsoft Edge via Playwright's "msedge" channel)
 Both sync and async Playwright objects work, because `launch()` only picks the
 BrowserType and builds keyword arguments; the caller awaits if needed.
 """
 import os, sys
 
 BROWSER = (os.environ.get('BROWSER') or (sys.argv[1] if len(sys.argv) > 1 else 'chromium')).lower()
-assert BROWSER in ('chromium', 'firefox'), BROWSER
+assert BROWSER in ('chromium', 'firefox', 'msedge'), BROWSER
 IS_FIREFOX = BROWSER == 'firefox'
+IS_EDGE = BROWSER == 'msedge'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SHOT_DIR = os.path.join(ROOT, 'shots', 'firefox' if IS_FIREFOX else '')
+# Chromium shots go to shots/, Firefox to shots/firefox/, Edge to shots/msedge/
+SHOT_SUB = 'firefox' if IS_FIREFOX else ('msedge' if IS_EDGE else '')
+SHOT_DIR = os.path.join(ROOT, 'shots', SHOT_SUB)
 os.makedirs(SHOT_DIR, exist_ok=True)
+
+
+def file_url(name='palette_picker.html'):
+    """file:// URL for a file in the repo root; works with Windows drive letters too."""
+    from pathlib import Path
+    return Path(ROOT, name).resolve().as_uri()
+
+
+def export_dir():
+    """Where downloaded exports are saved for this browser."""
+    d = os.path.join(SHOT_DIR, 'exports')
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 # Generated test fixtures (images) live outside the repo; override with HH_FIXTURES=/some/dir
@@ -50,6 +67,8 @@ def launch_kwargs():
             'browser.download.useDownloadDir': True,
             'browser.download.folderList': 2,
         }}
+    if IS_EDGE:
+        return {'channel': 'msedge'}
     return {'executable_path': '/usr/local/bin/chromium'} if os.path.exists('/usr/local/bin/chromium') else {}
 
 

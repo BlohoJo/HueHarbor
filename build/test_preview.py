@@ -2,11 +2,11 @@
 import os, sys, io, struct
 from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot, test_photo
+from browsers import BROWSER, IS_FIREFOX, launch_kwargs, context_kwargs, browser_type, shot, test_photo, file_url, export_dir
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-URL = 'file://' + os.path.join(ROOT, 'palette_picker.html')
+URL = file_url()
 TEST_IMG = test_photo()
 SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'sign', 'text', 'photo']
 SVG_SCENES = ['web', 'poster', 'room', 'outfit', 'dash', 'product', 'pack', 'sign']
@@ -408,7 +408,7 @@ with sync_playwright() as pw:
     # download PNG
     with page.expect_download() as dl:
         page.click('#pvDownload')
-    d = dl.value; path = os.path.join(ROOT, 'shots', 'firefox' if IS_FIREFOX else '', 'exports', d.suggested_filename)
+    d = dl.value; path = os.path.join(export_dir(), d.suggested_filename)
     os.makedirs(os.path.dirname(path), exist_ok=True); d.save_as(path); data = open(path, 'rb').read()
     w, hh = struct.unpack('>II', data[16:24])
     check(data[:8] == b'\x89PNG\r\n\x1a\n' and (w, hh) == (640, 400) and len(data) > 1000, f'PNG download at the photo\'s own resolution {d.suggested_filename} {len(data)} bytes {w}x{hh}')
