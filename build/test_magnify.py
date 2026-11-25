@@ -13,7 +13,7 @@ def check(cond, msg):
     if not cond: fails.append(msg)
 
 # Geometry of the overlay: both lines' boxes must lie inside the union of the coloured cells (never over the backing)
-OVERLAY = """()=>{const st=document.querySelector('.mag-stage'),sm=st.querySelector('.sample small'),l1=st.querySelector('.sample .light'),l2=st.querySelector('.sample .dark');
+OVERLAY = """async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const st=document.querySelector('.mag-stage'),sm=st.querySelector('.sample small'),l1=st.querySelector('.sample .light'),l2=st.querySelector('.sample .dark');
  const rg=document.createRange();rg.selectNodeContents(sm);const r=rg.getBoundingClientRect();
  const cells=[...st.querySelectorAll('[data-c]')].map(e=>e.getBoundingClientRect()).filter(b=>b.width);
  // "inside" = within the pattern's footprint (the union box of the cells: the gaps between Panels show the chosen
@@ -50,9 +50,23 @@ with sync_playwright() as pw:
     page.evaluate("()=>{const p=collection().items[mag.idx];p.colors=['#25335E','#101040','#477877'];p.name='Classic · template #909';mag.pattern=0;mag.bg=0;mag.rot=0;renderMagnify();}")
     o = page.evaluate(OVERLAY)
     check(o['inside'], f'Panels: both overlay lines lie inside the coloured panels (text bottom {o["textBottom"]:.0f} < stage bottom {o["stageBottom"]:.0f})')
-    ok_navy = o['color'] == '#ffffff' and o['worst'] >= 4.5
-    check(ok_navy, f'Panels on dark navy: line 2 is white with {o["worst"]:.2f}:1 worst-case contrast' + ('' if ok_navy else f' | under {o["under"]} diag {o["diag"]}'))
+    mixed = page.evaluate("()=>document.querySelector('.mag-stage .sample small').classList.contains('on-mixed')")
+    if '#ffffff' not in o['under']:
+        ok_navy = o['color'] == '#ffffff' and o['worst'] >= 4.5
+        check(ok_navy, f'Panels on dark navy: line 2 is white with {o["worst"]:.2f}:1 worst-case contrast' + ('' if ok_navy else f' | under {o["under"]} diag {o["diag"]}'))
+    else:
+        # wider system fonts (e.g. Segoe UI on Windows) push line 2 across the gap between panels 1 and 2, so it sits on navy / white / navy:
+        # no single colour can read there; the app must pick the better one and switch on the strong halo
+        ok_navy = o['worst'] + 1e-9 >= o['worstOther'] and mixed
+        check(ok_navy, f'Panels on dark navy (text crosses the panel gap with this font): better colour {o["color"]} ({o["worst"]:.2f} vs {o["worstOther"]:.2f}) with the strong halo' + ('' if ok_navy else f' | under {o["under"]} diag {o["diag"]}'))
     page.screenshot(path=shot('mag_panels_dark.png'))
+    # Windows Firefox case: the system font list initialises late, the text widens after the first sample and reaches across the
+    # gap between panels 1 and 2. Simulate it with letter-spacing and confirm the app re-samples (ResizeObserver) on its own.
+    page.evaluate("()=>{document.querySelector('.mag-stage .sample small').style.letterSpacing='1.2px';}")
+    o = page.evaluate(OVERLAY); late = page.evaluate("()=>{const s=document.querySelector('.mag-stage .sample small');return {mixed:s.classList.contains('on-mixed'),under:s.textContent.length};}")
+    check('#ffffff' in o['under'] and o['worst'] + 1e-9 >= o['worstOther'] and late['mixed'], f'late text widening across a panel gap: app re-sampled, chose the better colour {o["color"]} ({o["worst"]:.2f} vs {o["worstOther"]:.2f}) with the strong halo | under {o["under"]}')
+    page.evaluate("()=>{document.querySelector('.mag-stage .sample small').style.letterSpacing='';}")
+    o = page.evaluate(OVERLAY); check(o['color'] == '#ffffff' and o['worst'] >= 4.5, f'back to normal width: white again at {o["worst"]:.2f}:1')
     # a light palette -> dark text
     page.evaluate("()=>{const p=collection().items[mag.idx];p.colors=['#F5E1D5','#DCF0E4','#F1E2F3'];renderMagnify();}")
     o = page.evaluate(OVERLAY); check(o['color'] == '#111111' and o['worst'] >= 4.5, f'Panels on pastel palette: line 2 is dark with {o["worst"]:.2f}:1')
